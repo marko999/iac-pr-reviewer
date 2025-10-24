@@ -6,6 +6,7 @@ This plan outlines the workstreams required to deliver the first iteration of th
 - Select implementation stack (Python 3.11 recommended with `typer`, `pydantic`, `rich`) and capture decision in docs.
 - Establish repository layout: `src/compliance_service/`, `src/compliance_service/adapters/`, `src/compliance_service/cli/`, `src/compliance_service/models/`.
 - Configure development tooling: `pyproject.toml`, linting (`ruff`), formatting (`black`), testing (`pytest`), Makefile, and optional pre-commit hooks.
+- Seed a minimal `tests/` package (e.g., placeholder smoke test) so the configured `pytest` discovery runs cleanly once Track A lands.
 
 ## Track B – Terraform Pipeline
 - Implement `PlanLoader` handling temp workspaces, `terraform init/plan`, `terraform show -json`, and Terragrunt detection.
