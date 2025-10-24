@@ -1,0 +1,36 @@
+packs:
+  - name: azureBaseline
+    enabled: true
+    module: PSRule.Rules.Azure
+    settings:
+      baseline: Azure
+      includeRule: >-
+        Azure.Storage.Account.DenyPublicNetworkAccess,
+        Azure.Storage.Account.MinimumTLSVersion,
+        Azure.Storage.Account.RequireSecureTransfer
+    severity:
+      PSRule.Azure.Storage.Account.DenyPublicNetworkAccess: critical
+      PSRule.Azure.Storage.Account.MinimumTLSVersion: high
+      PSRule.Azure.Storage.Account.RequireSecureTransfer: high
+  - name: azureAppSecurity
+    enabled: true
+    module: PSRule.Rules.Azure
+    settings:
+      includeRule: >-
+        Azure.AppService.RequireHttps,
+        Azure.Sql.EnforceTde,
+        Azure.KeyVault.EnablePurgeProtection
+    severity:
+      PSRule.Azure.AppService.RequireHttps: high
+      PSRule.Azure.Sql.EnforceTde: critical
+      PSRule.Azure.KeyVault.EnablePurgeProtection: high
+  - name: azureOperations
+    enabled: true
+    module: PSRule.Rules.Azure
+    settings:
+      includeRule: >-
+        Azure.Monitor.EnableDiagnosticLogs,
+        Azure.SecurityCenter.StandardPricing
+    severity:
+      PSRule.Azure.Monitor.EnableDiagnosticLogs: medium
+      PSRule.Azure.SecurityCenter.StandardPricing: medium

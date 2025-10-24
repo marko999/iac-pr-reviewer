@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, MutableMapping, Sequence
 
+from ..models import FindingSeverity
+
 try:  # pragma: no cover - import guarded for optional dependency
     import yaml
 except ModuleNotFoundError:  # pragma: no cover - handled in loader
@@ -26,13 +28,25 @@ class RulePack:
     module: str | None = None
     source: str | None = None
     settings: Dict[str, Any] = field(default_factory=dict)
+    severity_overrides: Dict[str, FindingSeverity] = field(default_factory=dict)
+
+
+_DEFAULT_MANIFEST = Path(__file__).resolve().parent / "manifests" / "psrule.azure-baseline.yaml"
 
 
 class RulePackManager:
     """Load rule pack manifests and expose enabled packs for rule engines."""
 
     def __init__(self, default_manifests: Sequence[Path | str] | None = None) -> None:
-        self._default_manifests: List[Path] = [Path(path) for path in default_manifests or ()]
+        manifest_paths: List[Path]
+        if default_manifests is None:
+            manifest_paths = []
+            if _DEFAULT_MANIFEST.exists():
+                manifest_paths.append(_DEFAULT_MANIFEST)
+        else:
+            manifest_paths = [Path(path) for path in default_manifests]
+
+        self._default_manifests = manifest_paths
 
     # ------------------------------------------------------------------
     def load(self, manifests: Sequence[Path | str] | None = None) -> List[RulePack]:
@@ -61,6 +75,25 @@ class RulePackManager:
                 settings = pack_config.get("settings")
                 if isinstance(settings, Mapping):
                     pack.settings.update(settings)
+
+                severity = pack_config.get("severity")
+                if isinstance(severity, Mapping):
+                    for rule_id, level in severity.items():
+                        if not isinstance(rule_id, str):
+                            continue
+
+                        severity_value: FindingSeverity | None
+                        if isinstance(level, FindingSeverity):
+                            severity_value = level
+                        elif isinstance(level, str):
+                            try:
+                                severity_value = FindingSeverity(level.strip().lower())
+                            except ValueError:
+                                continue
+                        else:
+                            continue
+
+                        pack.severity_overrides[rule_id.strip()] = severity_value
 
                 packs[name] = pack
 
