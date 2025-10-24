@@ -6,7 +6,6 @@ import io
 import json
 from contextlib import redirect_stdout
 from pathlib import Path
-import pytest
 
 import pytest
 
@@ -109,4 +108,3 @@ def test_validate_outputs_json_when_requested() -> None:
     assert payload["summary"]["total_findings"] == 2
     assert payload["summary"]["counts"]["high"] == 1
     assert payload["summary"]["counts"]["medium"] == 1
-
