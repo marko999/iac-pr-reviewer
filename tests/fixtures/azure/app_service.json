@@ -1,0 +1,70 @@
+{
+  "format_version": "1.0",
+  "terraform_version": "1.5.7",
+  "resource_changes": [
+    {
+      "address": "azurerm_resource_group.example",
+      "mode": "managed",
+      "type": "azurerm_resource_group",
+      "name": "example",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "location": "eastus",
+          "name": "rg-web-compliant",
+          "tags": null
+        }
+      }
+    },
+    {
+      "address": "azurerm_app_service_plan.example",
+      "mode": "managed",
+      "type": "azurerm_app_service_plan",
+      "name": "example",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "location": "eastus",
+          "name": "asp-web-compliant",
+          "resource_group_name": "rg-web-compliant",
+          "sku": {
+            "size": "S1",
+            "tier": "Standard"
+          }
+        }
+      }
+    },
+    {
+      "address": "azurerm_app_service.example",
+      "mode": "managed",
+      "type": "azurerm_app_service",
+      "name": "example",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": ["update"],
+        "before": {
+          "https_only": false,
+          "client_affinity_enabled": true,
+          "site_config": {
+            "min_tls_version": "1.0",
+            "ftps_state": "AllAllowed",
+            "http2_enabled": false
+          }
+        },
+        "after": {
+          "https_only": true,
+          "client_affinity_enabled": false,
+          "site_config": {
+            "min_tls_version": "1.2",
+            "ftps_state": "Disabled",
+            "http2_enabled": true
+          }
+        }
+      }
+    }
+  ]
+}

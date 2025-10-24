@@ -1,0 +1,38 @@
+{
+  "format_version": "1.0",
+  "terraform_version": "1.5.7",
+  "resource_changes": [
+    {
+      "address": "azurerm_key_vault.example",
+      "mode": "managed",
+      "type": "azurerm_key_vault",
+      "name": "example",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": ["update"],
+        "before": {
+          "name": "noncomp-kv-001",
+          "resource_group_name": "rg-kv-noncompliant",
+          "public_network_access_enabled": true,
+          "enable_rbac_authorization": false,
+          "purge_protection_enabled": false,
+          "network_acls": {
+            "default_action": "Allow",
+            "ip_rules": []
+          }
+        },
+        "after": {
+          "name": "comp-kv-001",
+          "resource_group_name": "rg-kv-compliant",
+          "public_network_access_enabled": false,
+          "enable_rbac_authorization": true,
+          "purge_protection_enabled": true,
+          "network_acls": {
+            "default_action": "Deny",
+            "ip_rules": ["10.10.0.0/24"]
+          }
+        }
+      }
+    }
+  ]
+}

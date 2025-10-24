@@ -30,6 +30,7 @@ Tooling is under active development. Once the CLI skeleton lands, this section w
 
 - Repository-level defaults for the reusable GitHub Actions workflow live in `.github/iac-compliance.json`. Update the `plan_json`, `fail_on`, and `rule_manifests` keys to point at your Terraform plan artifacts and PSRule manifests without modifying the workflow YAML.
 - When triggering `workflow_dispatch` runs, override these values from the Actions UI by supplying inputs for the plan path, failure severity, and manifest list (newline separated).
+- Sample Terraform plan JSON fixtures are available under `tests/fixtures/azure/` (for example `app_service.json`, `key_vault.json`, and `sql_server.json`). Provide one of these paths to the `plan-json` workflow input to validate against the corresponding resource type.
 
 ### Python 3.11 Virtual Environment
 

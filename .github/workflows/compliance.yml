@@ -100,7 +100,7 @@ jobs:
           from pathlib import Path
 
           DEFAULTS = {
-              "plan_json": "tests/fixtures/azure/app_service_storage_plan.json",
+              "plan_json": "tests/fixtures/azure/app_service.json",
               "fail_on": "high",
               "rule_manifests": [],
           }
