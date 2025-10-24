@@ -82,6 +82,21 @@ def test_merges_default_and_override_manifests(tmp_path: Path):
     assert [pack.name for pack in enabled] == ["azureNaming"]
 
 
+def test_default_manifest_loaded():
+    manager = RulePackManager()
+    packs = manager.enabled_packs()
+
+    pack_names = {pack.name for pack in packs}
+    assert "azureBaseline" in pack_names
+
+    baseline = next(pack for pack in packs if pack.name == "azureBaseline")
+    assert baseline.module == "PSRule.Rules.Azure"
+    assert baseline.settings["baseline"] == "Azure"
+    assert baseline.severity_overrides[
+        "PSRule.Azure.Storage.Account.DenyPublicNetworkAccess"
+    ] == FindingSeverity.CRITICAL
+
+
 def test_missing_manifest_raises(tmp_path: Path):
     manager = RulePackManager()
     with pytest.raises(RulePackError):
