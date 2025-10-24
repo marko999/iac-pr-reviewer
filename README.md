@@ -28,21 +28,29 @@ Tooling is under active development. Once the CLI skeleton lands, this section w
 
 ### Python 3.11 Virtual Environment
 
-1. Create and activate a Python 3.11 virtual environment:
+1. Confirm Python 3.11 is available (on Windows, use `py -3.11 --version`):
+
+   ```bash
+   python3.11 --version
+   ```
+
+2. Create and activate a dedicated virtual environment:
 
    ```bash
    python3.11 -m venv .venv
    source .venv/bin/activate
+   # Windows (PowerShell)
+   # .\.venv\Scripts\Activate.ps1
    ```
 
-2. Upgrade packaging tools and install the development dependencies:
+3. Upgrade packaging tools and install the project with development extras:
 
    ```bash
-   pip install --upgrade pip
-   pip install -e .[dev]
+   python -m pip install --upgrade pip setuptools wheel
+   python -m pip install -e ".[dev]"
    ```
 
-3. Run formatters, linters, or tests from the activated environment (for example, `ruff check`, `black`, or `pytest`).
+4. Run formatters, linters, or tests from the activated environment (for example, `ruff check`, `black`, or `pytest`).
 
 ## Contributing
 Issues and pull requests are welcome as we bootstrap the project. Please keep the documentation up to date when adding features, and coordinate across tracks to maintain parallel velocity.
