@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Sequence
 import json
 import subprocess
 import tempfile
+from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Mapping, Sequence
 
 from ..models import Finding, FindingSeverity, NormalizedResource
-from ..rules import RulePackManager, RulePack
+from ..rules import RulePack, RulePackManager
 
 
 class RuleEvaluationError(RuntimeError):
