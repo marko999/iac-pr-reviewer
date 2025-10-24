@@ -14,9 +14,12 @@ jobs:
     name: Run IaC compliance checks
     runs-on: ubuntu-latest
     env:
-      TF_WORKING_DIR: examples/azure/storage_account # TODO(Track E): Allow repositories to override the module directory.
-      VALIDATION_TARGET: examples/azure/storage_account/compliant # TODO(Track E): Detect target modules dynamically from repo metadata.
-      COMPLIANCE_FAIL_ON: error # TODO(Track E): Wire through CLI defaults or workflow inputs for severity gating.
+      # TODO(Track E): Allow repositories to override the module directory.
+      TF_WORKING_DIR: examples/azure/storage_account
+      # TODO(Track E): Detect target modules dynamically via repository metadata.
+      VALIDATION_TARGET: examples/azure/storage_account/compliant
+      # TODO(Track E): Wire through CLI defaults or workflow inputs for severity gating.
+      COMPLIANCE_FAIL_ON: error
       PSRULE_MODULES: PSRule.Rules.Azure
 
     steps:
