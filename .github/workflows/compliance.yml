@@ -51,6 +51,12 @@ jobs:
       - name: Install PSRule modules
         shell: pwsh
         run: |
+          if (-not (Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue)) {
+            Install-PackageProvider -Name NuGet -Scope CurrentUser -Force -Confirm:$false
+          }
+          if (Get-Command Set-PSRepository -ErrorAction SilentlyContinue) {
+            Set-PSRepository -Name PSGallery -InstallationPolicy Trusted -ErrorAction SilentlyContinue
+          }
           foreach ($module in $env:PSRULE_MODULES.Split(',')) {
             if (-not (Test-Path (Join-Path $env:HOME ".local/share/powershell/Modules/$module"))) {
               Install-Module -Name $module -Scope CurrentUser -Force -Confirm:$false
