@@ -23,6 +23,70 @@ $modules = @()
 $sources = @()
 $options = @{}
 
+function Convert-OptionValue {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Value
+    )
+
+    $trimmed = $Value.Trim()
+
+    switch -Regex ($trimmed) {
+        '^(?i:true|false)$' {
+            return [bool]::Parse($trimmed)
+        }
+        '^-?\d+$' {
+            return [int]$trimmed
+        }
+        '^-?\d+\.\d+$' {
+            return [double]$trimmed
+        }
+    }
+
+    if ($trimmed -eq 'null') {
+        return $null
+    }
+
+    if (($trimmed.StartsWith('{') -and $trimmed.EndsWith('}')) -or (
+            $trimmed.StartsWith('[') -and $trimmed.EndsWith(']')
+        )) {
+        try {
+            return $trimmed | ConvertFrom-Json -ErrorAction Stop
+        }
+        catch {
+            # Fall back to returning the raw string when JSON parsing fails.
+        }
+    }
+
+    return $Value
+}
+
+function Set-OptionValue {
+    param(
+        [Parameter(Mandatory = $true)]
+        [hashtable]$Target,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Key,
+
+        [Parameter(Mandatory = $true)]
+        $Value
+    )
+
+    if ($Target.ContainsKey($Key)) {
+        $existing = $Target[$Key]
+        if ($existing -is [System.Collections.IList]) {
+            $existing.Add($Value) | Out-Null
+        }
+        else {
+            $Target[$Key] = @($existing, $Value)
+        }
+    }
+    else {
+        $Target[$Key] = $Value
+    }
+}
+
 for ($i = 0; $i -lt $arguments.Count; $i++) {
     $current = $arguments[$i]
     switch ($current) {
@@ -63,7 +127,8 @@ for ($i = 0; $i -lt $arguments.Count; $i++) {
                     $key = $optionValue
                     $value = $true
                 }
-                $options[$key] = $value
+                $convertedValue = Convert-OptionValue -Value $value
+                Set-OptionValue -Target $options -Key $key -Value $convertedValue
             }
         }
         '--output-format' {
@@ -80,8 +145,14 @@ if (-not $inputPath) {
     throw 'Missing required --input-path argument.'
 }
 
-Import-Module -Name PSRule -ErrorAction Stop
-Import-Module -Name PSRule.Rules.Azure -ErrorAction SilentlyContinue
+try {
+    Import-Module -Name PSRule -ErrorAction Stop | Out-Null
+}
+catch {
+    throw 'Unable to load the PSRule module. Please ensure PSRule is installed.'
+}
+
+Import-Module -Name PSRule.Rules.Azure -ErrorAction SilentlyContinue | Out-Null
 
 $invokeParams = @{ InputPath = $inputPath; OutputFormat = 'Json' }
 
@@ -94,7 +165,17 @@ if ($modules.Count -gt 0) {
 }
 
 if ($sources.Count -gt 0) {
-    $invokeParams['Source'] = $sources
+    $resolvedSources = @()
+    foreach ($sourcePath in $sources) {
+        try {
+            $resolvedSources += (Resolve-Path -Path $sourcePath -ErrorAction Stop).ProviderPath
+        }
+        catch {
+            $resolvedSources += $sourcePath
+        }
+    }
+
+    $invokeParams['Source'] = $resolvedSources
 }
 
 if ($options.Count -gt 0) {
