@@ -1,0 +1,56 @@
+{
+  "metadata": {
+    "resource": "Azure multi-service baseline",
+    "variant": "non_compliant"
+  },
+  "findings": [
+    {
+      "rule_id": "AZR-STR-001",
+      "resource": "azurerm_storage_account.shared",
+      "severity": "error",
+      "description": "Storage accounts must enforce HTTPS and disallow legacy TLS versions."
+    },
+    {
+      "rule_id": "AZR-STR-002",
+      "resource": "azurerm_storage_account.shared",
+      "severity": "warning",
+      "description": "Enable advanced encryption and logging for storage accounts handling sensitive data."
+    },
+    {
+      "rule_id": "AZR-KV-001",
+      "resource": "azurerm_key_vault.shared",
+      "severity": "error",
+      "description": "Key Vault instances must disable public network access and restrict the default action to Deny."
+    },
+    {
+      "rule_id": "AZR-KV-002",
+      "resource": "azurerm_key_vault.shared",
+      "severity": "warning",
+      "description": "Enable purge protection and RBAC to safeguard secrets from accidental deletion."
+    },
+    {
+      "rule_id": "AZR-WEB-001",
+      "resource": "azurerm_app_service.shared",
+      "severity": "error",
+      "description": "App Services must enforce HTTPS-only traffic and disable weak TLS versions."
+    },
+    {
+      "rule_id": "AZR-WEB-002",
+      "resource": "azurerm_app_service.shared",
+      "severity": "warning",
+      "description": "Disable legacy authentication flows and client affinity unless required."
+    },
+    {
+      "rule_id": "AZR-SQL-001",
+      "resource": "azurerm_mssql_server.shared",
+      "severity": "error",
+      "description": "Azure SQL Servers must enforce TLS 1.2 or higher and disable public network access."
+    },
+    {
+      "rule_id": "AZR-SQL-002",
+      "resource": "azurerm_mssql_server.shared",
+      "severity": "warning",
+      "description": "Use strong administrator credentials and enable managed identity for Azure SQL Servers."
+    }
+  ]
+}

@@ -5,6 +5,27 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      plan-json:
+        description: Path to a Terraform plan JSON artifact to validate.
+        required: false
+        default: ""
+      fail-on:
+        description: Highest allowed severity before failing the workflow.
+        required: false
+        default: high
+        type: choice
+        options:
+          - info
+          - low
+          - medium
+          - high
+          - critical
+      rule-manifests:
+        description: >-
+          Newline separated list of PSRule manifest files to include when running validation.
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -14,10 +35,6 @@ jobs:
     name: Run IaC compliance checks
     runs-on: ubuntu-latest
     env:
-      # TODO(Track E): Allow repositories to override the module directory.
-      VALIDATION_PLAN_JSON: tests/fixtures/azure/app_service_storage_plan.json
-      # TODO(Track E): Wire through CLI defaults or workflow inputs for severity gating.
-      COMPLIANCE_FAIL_ON: high
       PSRULE_MODULES: PSRule.Rules.Azure
 
     steps:
@@ -70,18 +87,120 @@ jobs:
           chmod +x "$RUNNER_TEMP/ps-rule"
           echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
 
+      - name: Resolve validation configuration
+        env:
+          WORKFLOW_PLAN_JSON: ${{ inputs.plan-json }}
+          WORKFLOW_FAIL_ON: ${{ inputs.fail-on }}
+          WORKFLOW_RULE_MANIFESTS: ${{ inputs.rule-manifests }}
+          CONFIG_PATH: .github/iac-compliance.json
+        run: |
+          python <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          DEFAULTS = {
+              "plan_json": "tests/fixtures/azure/app_service_storage_plan.json",
+              "fail_on": "high",
+              "rule_manifests": [],
+          }
+
+          config_path = Path(os.environ.get("CONFIG_PATH", "")).resolve()
+          config: dict[str, object] = {}
+          if config_path.is_file():
+              try:
+                  loaded = json.loads(config_path.read_text())
+              except json.JSONDecodeError as exc:
+                  raise SystemExit(f"Invalid JSON in {config_path}: {exc}")
+              if not isinstance(loaded, dict):
+                  raise SystemExit(f"Configuration file must contain a JSON object: {config_path}")
+              config = loaded
+
+          plan_json = (
+              os.environ.get("WORKFLOW_PLAN_JSON")
+              or config.get("plan_json")
+              or DEFAULTS["plan_json"]
+          )
+          if plan_json is None:
+              plan_json = ""
+          elif not isinstance(plan_json, str):
+              plan_json = str(plan_json)
+
+          fail_on = (
+              os.environ.get("WORKFLOW_FAIL_ON")
+              or config.get("fail_on")
+              or DEFAULTS["fail_on"]
+          )
+          if isinstance(fail_on, str):
+              fail_on = fail_on.lower()
+          else:
+              raise SystemExit("fail_on must be a string value")
+          allowed_failures = {"info", "low", "medium", "high", "critical"}
+          if fail_on not in allowed_failures:
+              raise SystemExit(
+                  "fail_on must be one of: info, low, medium, high, critical"
+              )
+
+          manifest_override = os.environ.get("WORKFLOW_RULE_MANIFESTS")
+          if manifest_override:
+              manifest_values = [
+                  line.strip()
+                  for line in manifest_override.splitlines()
+                  if line.strip()
+              ]
+          else:
+              manifests = config.get("rule_manifests", DEFAULTS["rule_manifests"])
+              if not isinstance(manifests, list):
+                  raise SystemExit("rule_manifests must be an array of strings")
+              manifest_values = [str(value) for value in manifests if str(value).strip()]
+
+          github_env = Path(os.environ["GITHUB_ENV"])
+          with github_env.open("a", encoding="utf-8") as env_file:
+              if plan_json:
+                  env_file.write(f"VALIDATION_PLAN_JSON={plan_json}\n")
+              env_file.write(f"COMPLIANCE_FAIL_ON={fail_on}\n")
+              env_file.write("RULE_MANIFESTS<<EOF\n")
+              env_file.write("\n".join(manifest_values))
+              env_file.write("\nEOF\n")
+
+          print("Resolved configuration:")
+          print(f"  plan_json={plan_json}")
+          print(f"  fail_on={fail_on}")
+          if manifest_values:
+              for value in manifest_values:
+                  print(f"  rule_manifest={value}")
+          else:
+              print("  rule_manifest=<none>")
+          PY
+
       - name: Run IaC compliance validation
         id: run-validation
         continue-on-error: true
+        shell: bash
         run: |
-          set -o pipefail
+          set -euo pipefail
+
+          args=("--format" "json")
+
+          if [[ -n "${VALIDATION_PLAN_JSON:-}" ]]; then
+            args+=("--plan-json" "$VALIDATION_PLAN_JSON")
+          fi
+
+          if [[ -n "${COMPLIANCE_FAIL_ON:-}" ]]; then
+            args+=("--fail-on" "$COMPLIANCE_FAIL_ON")
+          fi
+
+          if [[ -n "${RULE_MANIFESTS:-}" ]]; then
+            while IFS= read -r manifest; do
+              [[ -z "$manifest" ]] && continue
+              args+=("--rule-manifest" "$manifest")
+            done <<< "${RULE_MANIFESTS}"
+          fi
+
           RESULTS_PATH="$RUNNER_TEMP/compliance-results.json"
           echo "results_path=$RESULTS_PATH" >> "$GITHUB_OUTPUT"
-          iac-compliance validate \
-            --plan-json "${{ env.VALIDATION_PLAN_JSON }}" \
-            --format json \
-            --fail-on "${{ env.COMPLIANCE_FAIL_ON }}" \
-            | tee "$RESULTS_PATH"
+
+          iac-compliance validate "${args[@]}" | tee "$RESULTS_PATH"
         # TODO(Track E): Replace fixture validation with real plan ingestion once implemented.
 
       - name: Publish compliance report
