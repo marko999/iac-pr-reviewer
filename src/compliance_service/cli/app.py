@@ -369,4 +369,3 @@ def run() -> None:  # pragma: no cover - thin wrapper for module execution
 
 if __name__ == "__main__":  # pragma: no cover - module execution guard
     run()
-

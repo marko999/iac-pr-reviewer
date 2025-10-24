@@ -83,4 +83,3 @@ def test_missing_rule_engine_factory_raises() -> None:
 
     with pytest.raises(RuleEvaluationError):
         service.validate(Path("."))
-
