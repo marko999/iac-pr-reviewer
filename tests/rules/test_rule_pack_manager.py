@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from compliance_service.models import FindingSeverity
 from compliance_service.rules import RulePackManager, RulePackError
 
 
@@ -25,6 +26,10 @@ def test_merges_default_and_override_manifests(tmp_path: Path):
                         "module": "PSRule.Rules.Azure",
                         "source": "baseline.yaml",
                         "settings": {"severity": "Major"},
+                        "severity": {
+                            "PSRule.Azure.Storage.Account.DenyPublicNetworkAccess": "high",
+                            "PSRule.Azure.AppService.RequireHttps": "medium",
+                        },
                     }
                 ]
             },
@@ -42,6 +47,9 @@ def test_merges_default_and_override_manifests(tmp_path: Path):
                         "name": "azureBaseline",
                         "enabled": False,
                         "settings": {"severity": "Critical"},
+                        "severity": {
+                            "PSRule.Azure.Storage.Account.DenyPublicNetworkAccess": "critical",
+                        },
                     },
                     {"name": "azureNaming", "module": "Custom.Rules.Naming"},
                 ]
@@ -61,6 +69,10 @@ def test_merges_default_and_override_manifests(tmp_path: Path):
     assert baseline.module == "PSRule.Rules.Azure"
     assert baseline.source == "baseline.yaml"
     assert baseline.settings["severity"] == "Critical"
+    assert baseline.severity_overrides == {
+        "PSRule.Azure.Storage.Account.DenyPublicNetworkAccess": FindingSeverity.CRITICAL,
+        "PSRule.Azure.AppService.RequireHttps": FindingSeverity.MEDIUM,
+    }
 
     naming = packs_by_name["azureNaming"]
     assert naming.enabled is True
