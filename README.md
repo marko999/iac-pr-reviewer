@@ -26,6 +26,11 @@ See the [Implementation Plan](docs/implementation-plan.md) for the eight workstr
 ## Getting Started
 Tooling is under active development. Once the CLI skeleton lands, this section will include prerequisites, installation steps, and quick-start commands (`iac-compliance validate examples/azure/storageaccount`). For now, follow the documentation in `docs/` when contributing.
 
+### Configuring the Compliance Workflow
+
+- Repository-level defaults for the reusable GitHub Actions workflow live in `.github/iac-compliance.json`. Update the `plan_json`, `fail_on`, and `rule_manifests` keys to point at your Terraform plan artifacts and PSRule manifests without modifying the workflow YAML.
+- When triggering `workflow_dispatch` runs, override these values from the Actions UI by supplying inputs for the plan path, failure severity, and manifest list (newline separated).
+
 ### Python 3.11 Virtual Environment
 
 1. Confirm Python 3.11 is available (on Windows, use `py -3.11 --version`):
