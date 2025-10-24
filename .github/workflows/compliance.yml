@@ -58,7 +58,7 @@ jobs:
             }
           }
 
-      - name: Create ps-rule shim
+      - name: Expose PSRule wrapper
         run: |
           cat <<'EOF' > "$RUNNER_TEMP/ps-rule"
           #!/usr/bin/env bash

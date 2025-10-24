@@ -35,7 +35,7 @@ package-dir = { "" = "src" }
 where = ["src"]
 
 [tool.setuptools.package-data]
-"compliance_service.rules" = ["manifests/*.yaml"]
+"compliance_service.rules" = ["manifests/*.yaml", "run_psrule.ps1"]
 
 [tool.black]
 line-length = 100

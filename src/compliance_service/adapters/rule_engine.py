@@ -6,6 +6,7 @@ import json
 import subprocess
 import tempfile
 from abc import ABC, abstractmethod
+from importlib import resources
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Sequence
 
@@ -63,11 +64,16 @@ class PSRuleAdapter(RuleEngineAdapter):
     def __init__(
         self,
         *,
-        psrule_executable: str = "ps-rule",
+        psrule_executable: str | None = None,
         rule_pack_manager: RulePackManager | None = None,
         manifests: Sequence[str] | None = None,
     ) -> None:
-        self.psrule_executable = psrule_executable
+        if psrule_executable is None:
+            self.psrule_executable = str(
+                resources.files("compliance_service.rules") / "run_psrule.ps1"
+            )
+        else:
+            self.psrule_executable = psrule_executable
         self.rule_pack_manager = rule_pack_manager or RulePackManager()
         self.manifests = list(manifests or [])
 
