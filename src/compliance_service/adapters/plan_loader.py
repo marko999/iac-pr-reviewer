@@ -39,7 +39,9 @@ class PlanLoader:
             else None
         )
         self.auto_discover_modules = auto_discover_modules
-        self.var_files = [str(Path(path).resolve()) for path in var_files] if var_files else []
+        self.var_files = (
+            [str(Path(path).resolve()) for path in var_files] if var_files else []
+        )
         self.env = env or {}
         self.inherit_environment = inherit_environment
         self.terraform_bin = terraform_bin
@@ -214,4 +216,3 @@ class PlanLoader:
 
 
 __all__ = ["PlanLoader", "PlanLoaderError"]
-

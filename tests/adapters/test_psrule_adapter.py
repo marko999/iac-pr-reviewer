@@ -34,7 +34,14 @@ def make_resource(address: str) -> NormalizedResource:
 
 def test_evaluate_invokes_psrule(monkeypatch, tmp_path):
     packs = [
-        RulePack(name="azureBaseline", module="PSRule.Rules.Azure", settings={"baseline": "Azure"}),
+        RulePack(
+            name="azureBaseline",
+            module="PSRule.Rules.Azure",
+            settings={"baseline": "Azure"},
+            severity_overrides={
+                "PSRule.Azure.Storage.Account.DenyPublicNetworkAccess": FindingSeverity.CRITICAL,
+            },
+        ),
         RulePack(name="customPack", source="custom/rules.yaml"),
     ]
     manager = DummyManager(packs)
@@ -51,13 +58,21 @@ def test_evaluate_invokes_psrule(monkeypatch, tmp_path):
         output = {
             "results": [
                 {
-                    "ruleId": "PSRule.Storage.DisablePublicAccess",
+                    "ruleId": "PSRule.Azure.Storage.Account.DenyPublicNetworkAccess",
                     "level": "Warning",
                     "message": "Public access should be disabled.",
                     "targetId": "module.app.azurerm_storage_account.primary",
                     "recommendation": "Disable public network access",
-                    "link": "https://aka.ms/psrule",
-                }
+                    "link": "https://aka.ms/psrule/storage",
+                },
+                {
+                    "ruleId": "PSRule.Azure.AppService.RequireHttps",
+                    "level": "Error",
+                    "message": "HTTPS Only should be enabled.",
+                    "targetId": "module.app.azurerm_storage_account.primary",
+                    "recommendation": "Enforce HTTPS only connections",
+                    "link": "https://aka.ms/psrule/appservice",
+                },
             ]
         }
         return SimpleNamespace(returncode=0, stdout=json.dumps(output), stderr="")
@@ -73,13 +88,21 @@ def test_evaluate_invokes_psrule(monkeypatch, tmp_path):
         "module.app.azurerm_storage_account.primary"
     }
 
-    assert len(findings) == 1
-    finding = findings[0]
-    assert finding.rule_id == "PSRule.Storage.DisablePublicAccess"
-    assert finding.severity == FindingSeverity.MEDIUM
-    assert finding.resource is resources[0]
-    assert finding.metadata["recommendation"] == "Disable public network access"
-    assert finding.metadata["link"] == "https://aka.ms/psrule"
+    assert len(findings) == 2
+
+    deny_public_access, enforce_https = findings
+
+    assert deny_public_access.rule_id == "PSRule.Azure.Storage.Account.DenyPublicNetworkAccess"
+    assert deny_public_access.severity == FindingSeverity.CRITICAL
+    assert deny_public_access.resource is resources[0]
+    assert deny_public_access.metadata["recommendation"] == "Disable public network access"
+    assert deny_public_access.metadata["link"] == "https://aka.ms/psrule/storage"
+
+    assert enforce_https.rule_id == "PSRule.Azure.AppService.RequireHttps"
+    assert enforce_https.severity == FindingSeverity.HIGH
+    assert enforce_https.resource is resources[0]
+    assert enforce_https.metadata["recommendation"] == "Enforce HTTPS only connections"
+    assert enforce_https.metadata["link"] == "https://aka.ms/psrule/appservice"
 
 
 def test_severity_threshold_filters(monkeypatch):
@@ -123,3 +146,34 @@ def test_evaluate_raises_on_error(monkeypatch):
 
     with pytest.raises(RuleEvaluationError):
         adapter.evaluate(resources)
+
+
+def test_severity_override_applied(monkeypatch):
+    packs = [
+        RulePack(
+            name="azureBaseline",
+            severity_overrides={"CriticalRule": FindingSeverity.CRITICAL},
+        )
+    ]
+    adapter = PSRuleAdapter(rule_pack_manager=DummyManager(packs))
+    resources = [make_resource("module.app.azurerm_storage_account.primary")]
+
+    payload = {
+        "results": [
+            {
+                "ruleId": "CriticalRule",
+                "level": "Information",
+                "message": "Critical finding",
+                "targetId": "module.app.azurerm_storage_account.primary",
+            }
+        ]
+    }
+
+    def fake_run(command, capture_output, text):
+        return SimpleNamespace(returncode=0, stdout=json.dumps(payload), stderr="")
+
+    monkeypatch.setattr("compliance_service.adapters.rule_engine.subprocess.run", fake_run)
+
+    findings = adapter.evaluate(resources)
+    assert len(findings) == 1
+    assert findings[0].severity == FindingSeverity.CRITICAL
