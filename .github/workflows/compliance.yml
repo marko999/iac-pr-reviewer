@@ -71,12 +71,42 @@ jobs:
           echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
 
       - name: Run IaC compliance validation
+        id: run-validation
+        continue-on-error: true
         run: |
+          set -o pipefail
+          RESULTS_PATH="$RUNNER_TEMP/compliance-results.json"
+          echo "results_path=$RESULTS_PATH" >> "$GITHUB_OUTPUT"
           iac-compliance validate \
             --plan-json "${{ env.VALIDATION_PLAN_JSON }}" \
             --format json \
-            --fail-on "${{ env.COMPLIANCE_FAIL_ON }}"
+            --fail-on "${{ env.COMPLIANCE_FAIL_ON }}" \
+            | tee "$RESULTS_PATH"
         # TODO(Track E): Replace fixture validation with real plan ingestion once implemented.
 
-      # TODO(Track E): Publish job summary and annotations once reporting helpers land.
-      # TODO(Track E): Upload structured findings artifact for downstream tooling.
+      - name: Publish compliance report
+        if: always()
+        env:
+          RESULTS_PATH: ${{ steps.run-validation.outputs.results_path }}
+        run: |
+          if [ -z "${RESULTS_PATH}" ]; then
+            echo "Compliance results path was not provided." >&2
+            exit 1
+          fi
+          if [ ! -f "${RESULTS_PATH}" ]; then
+            echo "Compliance results file not found: ${RESULTS_PATH}" >&2
+            exit 1
+          fi
+          python -m compliance_service.cli.github_reporting "${RESULTS_PATH}"
+
+      - name: Upload compliance findings artifact
+        if: always() && steps.run-validation.outputs.results_path != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: compliance-findings
+          path: ${{ steps.run-validation.outputs.results_path }}
+          retention-days: 14
+
+      - name: Fail when compliance validation reports violations
+        if: steps.run-validation.outcome == 'failure'
+        run: exit 1
