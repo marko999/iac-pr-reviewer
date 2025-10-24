@@ -59,3 +59,29 @@ def test_iter_annotations_maps_severity_levels() -> None:
 
     assert annotations[1].startswith("::warning")
     assert "Enable diagnostics on the App Service." in annotations[1]
+
+
+def test_iter_annotations_includes_location_metadata() -> None:
+    """Annotations should include file and line information when metadata is present."""
+
+    report = {
+        "findings": [
+            {
+                "rule_id": "AZURE_003",
+                "message": "Secure transfer should be enabled.",
+                "severity": "critical",
+                "metadata": {
+                    "file_path": "modules/storage/main.tf",
+                    "line": 27,
+                },
+            }
+        ]
+    }
+
+    annotations = list(iter_annotations(report))
+
+    expected = (
+        "::error file=modules/storage/main.tf,line=27,title=Critical - AZURE_003::"
+        "Secure transfer should be enabled."
+    )
+    assert annotations == [expected]
