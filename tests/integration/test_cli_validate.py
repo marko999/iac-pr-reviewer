@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import json
 import io
+import json
 from contextlib import redirect_stdout
 from pathlib import Path
 
