@@ -2,6 +2,9 @@
   "fail_on": "high",
   "rule_manifests": [],
   "modules": [
-    "examples/azure/app_service/compliant"
+    "examples/azure/app_service/compliant",
+    "examples/azure/storage_account/compliant",
+    "examples/azure/sql_server/compliant",
+    "examples/azure/key_vault/compliant"
   ]
 }
