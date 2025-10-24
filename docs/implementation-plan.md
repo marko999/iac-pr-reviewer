@@ -19,9 +19,9 @@ This plan outlines the workstreams required to deliver the first iteration of th
 - Cover with tests using representative Azure plan fixtures (App Service, Storage Account, etc.).
 
 ## Track D – Rule Engine Integration
-- Implement `RulePackManager` to load YAML manifests, merge defaults, and expose enabled rule sets.
-- Create `PSRuleAdapter` invoking PSRule for Azure, mapping responses to internal findings and respecting severity thresholds.
-- Define adapter interface to simplify future engines (e.g., OPA, Checkov).
+- [x] Implement `RulePackManager` to load YAML manifests, merge defaults, and expose enabled rule sets.
+- [x] Create `PSRuleAdapter` invoking PSRule for Azure, mapping responses to internal findings and respecting severity thresholds.
+- [x] Define adapter interface to simplify future engines (e.g., OPA, Checkov).
 
 ## Track E – CLI & Reporting
 - Deliver `iac-compliance validate` command orchestrating plan loading, normalization, rule evaluation, and reporting.
