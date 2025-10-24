@@ -34,11 +34,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install .
 
-      - name: Set up PowerShell Core
-        uses: PowerShell/PowerShell@v1
-        with:
-          pwsh-version: '7.4'
-
       - name: Restore PSRule module cache
         id: psrule-cache
         uses: actions/cache@v4
@@ -70,7 +65,7 @@ jobs:
           # Temporary stub until PSRule integration lands (Track D/E).
           cat <<'JSON'
           {"results":[]}
-JSON
+          JSON
           EOF
           chmod +x "$RUNNER_TEMP/ps-rule"
           echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
