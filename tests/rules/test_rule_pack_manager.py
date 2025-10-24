@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from compliance_service.rules import RulePackManager, RulePackError
+from compliance_service.rules import RulePackError, RulePackManager
 
 
 def write_manifest(tmp_path: Path, name: str, content: str) -> Path:
