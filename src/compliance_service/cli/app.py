@@ -5,115 +5,85 @@ from __future__ import annotations
 import argparse
 import json
 from dataclasses import dataclass
-from enum import Enum
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Mapping, MutableMapping, Sequence
 
-FINDINGS_FILENAME = "expected-findings.json"
-
-
-class Severity(str, Enum):
-    """Supported finding severities ordered from lowest to highest impact."""
-
-    INFO = "info"
-    WARNING = "warning"
-    ERROR = "error"
-    CRITICAL = "critical"
+from ..adapters import PlanLoaderError, PSRuleAdapter, RuleEvaluationError
+from ..models import Finding, FindingSeverity, NormalizedResource
+from ..normalization import ResourceNormalizer
+from ..rules import RulePackManager
+from ..service import ComplianceService, ValidationResult
 
 
 SEVERITY_RANK = {
-    Severity.INFO: 0,
-    Severity.WARNING: 1,
-    Severity.ERROR: 2,
-    Severity.CRITICAL: 3,
+    FindingSeverity.INFO: 0,
+    FindingSeverity.LOW: 1,
+    FindingSeverity.MEDIUM: 2,
+    FindingSeverity.HIGH: 3,
+    FindingSeverity.CRITICAL: 4,
 }
-
-
-@dataclass(slots=True)
-class Finding:
-    """Represents a single compliance finding emitted by the rule engine."""
-
-    rule_id: str
-    resource: str
-    severity: Severity
-    description: str
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Finding":
-        try:
-            severity = Severity(data["severity"].lower())
-        except KeyError as exc:  # pragma: no cover - defensive guard
-            raise ValueError("Finding missing severity field") from exc
-        except ValueError as exc:
-            raise ValueError(f"Unsupported severity value: {data.get('severity')}") from exc
-
-        return cls(
-            rule_id=data["rule_id"],
-            resource=data["resource"],
-            severity=severity,
-            description=data["description"],
-        )
-
-    def to_dict(self) -> dict[str, str]:
-        return {
-            "rule_id": self.rule_id,
-            "resource": self.resource,
-            "severity": self.severity.value,
-            "description": self.description,
-        }
 
 
 @dataclass(slots=True)
 class ValidationReport:
     """Collection of findings plus contextual metadata."""
 
-    findings: list[Finding]
-    metadata: dict[str, Any]
+    findings: Sequence[Finding]
+    metadata: Mapping[str, Any]
 
     @property
-    def highest_severity(self) -> Severity | None:
+    def highest_severity(self) -> FindingSeverity | None:
         if not self.findings:
             return None
         return max(self.findings, key=lambda finding: SEVERITY_RANK[finding.severity]).severity
 
     def counts_by_severity(self) -> dict[str, int]:
-        counts: dict[Severity, int] = {severity: 0 for severity in Severity}
+        counts: MutableMapping[FindingSeverity, int] = {
+            severity: 0 for severity in FindingSeverity
+        }
         for finding in self.findings:
             counts[finding.severity] += 1
         return {severity.value: count for severity, count in counts.items()}
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "metadata": self.metadata,
+            "metadata": dict(self.metadata),
             "summary": {
                 "total_findings": len(self.findings),
                 "highest_severity": self.highest_severity.value if self.highest_severity else None,
                 "counts": self.counts_by_severity(),
             },
-            "findings": [finding.to_dict() for finding in self.findings],
+            "findings": [_serialize_finding(finding) for finding in self.findings],
         }
 
 
-def load_report(target: Path) -> ValidationReport:
-    """Load the validation report from a directory or JSON file."""
+def _serialize_finding(finding: Finding) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "rule_id": finding.rule_id,
+        "message": finding.message,
+        "severity": finding.severity.value,
+        "metadata": dict(finding.metadata),
+    }
 
-    manifest_path = target
-    if target.is_dir():
-        manifest_path = target / FINDINGS_FILENAME
+    if finding.resource:
+        payload["resource"] = _serialize_resource(finding.resource)
+    else:
+        payload["resource"] = None
 
-    if not manifest_path.exists():
-        raise ValueError(
-            f"No validation manifest found at {manifest_path}. Expected {FINDINGS_FILENAME}."
-        )
+    return payload
 
-    try:
-        payload = json.loads(manifest_path.read_text())
-    except json.JSONDecodeError as exc:  # pragma: no cover - user error path
-        raise ValueError(f"Invalid JSON in {manifest_path}: {exc}") from exc
 
-    findings = [Finding.from_dict(item) for item in payload.get("findings", [])]
-    metadata = payload.get("metadata", {})
-    return ValidationReport(findings=findings, metadata=metadata)
+def _serialize_resource(resource: NormalizedResource) -> dict[str, Any]:
+    return {
+        "address": resource.address,
+        "module_path": list(resource.module_path),
+        "type": resource.type,
+        "name": resource.name,
+        "provider_name": resource.provider_name,
+        "mode": resource.mode,
+        "index": resource.index,
+        "change_action": resource.change_action.value,
+    }
 
 
 def render_table(report: ValidationReport) -> str:
@@ -122,15 +92,16 @@ def render_table(report: ValidationReport) -> str:
     if not report.findings:
         return "No findings detected."
 
-    headers = ("Severity", "Rule ID", "Resource", "Description")
+    headers = ("Severity", "Rule ID", "Resource", "Message")
     rows = [headers]
     for finding in report.findings:
+        resource_address = finding.resource.address if finding.resource else "-"
         rows.append(
             (
                 finding.severity.value,
                 finding.rule_id,
-                finding.resource,
-                finding.description,
+                resource_address,
+                finding.message,
             )
         )
 
@@ -146,11 +117,172 @@ def render_table(report: ValidationReport) -> str:
     return "\n".join(lines)
 
 
-def run_validation(
-    report: ValidationReport, fail_on: Severity, output_format: str
-) -> tuple[str, bool]:
-    """Return the rendered output and whether the run should fail."""
+def build_parser() -> argparse.ArgumentParser:
+    """Construct the CLI argument parser."""
 
+    parser = argparse.ArgumentParser(prog="iac-compliance", description="IaC compliance CLI")
+    subparsers = parser.add_subparsers(dest="command")
+
+    validate_parser = subparsers.add_parser(
+        "validate", help="Validate Terraform plans and report compliance findings."
+    )
+    validate_parser.add_argument(
+        "path",
+        type=Path,
+        nargs="?",
+        default=Path.cwd(),
+        help="Path to the directory containing Terraform configuration or plan artifacts.",
+    )
+    validate_parser.add_argument(
+        "--plan-json",
+        type=Path,
+        default=None,
+        help="Path to an existing Terraform plan exported with `terraform show -json`.",
+    )
+    validate_parser.add_argument(
+        "--plan-file",
+        type=Path,
+        default=None,
+        help="Path to a binary Terraform plan file generated via `terraform plan -out`.",
+    )
+    validate_parser.add_argument(
+        "--module",
+        dest="modules",
+        action="append",
+        type=Path,
+        default=None,
+        help="Explicit module directories to evaluate instead of auto-discovery.",
+    )
+    validate_parser.add_argument(
+        "--no-auto-discover",
+        dest="auto_discover_modules",
+        action="store_false",
+        default=True,
+        help="Disable module discovery and only evaluate the provided working directory or modules.",
+    )
+    validate_parser.add_argument(
+        "--var-file",
+        dest="var_files",
+        action="append",
+        type=Path,
+        default=None,
+        help="Additional Terraform variable files to pass when generating a plan.",
+    )
+    validate_parser.add_argument(
+        "--env",
+        dest="env",
+        action="append",
+        default=None,
+        metavar="KEY=VALUE",
+        help="Environment variables to provide to Terraform/PSRule during execution.",
+    )
+    validate_parser.add_argument(
+        "--inherit-env",
+        action="store_true",
+        help="Inherit the current environment instead of a minimal PATH-only sandbox.",
+    )
+    validate_parser.add_argument(
+        "--terraform-bin",
+        default="terraform",
+        help="Name or path of the Terraform executable to use when generating plans.",
+    )
+    validate_parser.add_argument(
+        "--terragrunt-bin",
+        default="terragrunt",
+        help="Name or path of the Terragrunt executable to use when generating plans.",
+    )
+    validate_parser.add_argument(
+        "--force-terragrunt",
+        action="store_true",
+        help="Always use Terragrunt when executing plans, even without a terragrunt.hcl file.",
+    )
+    validate_parser.add_argument(
+        "--rule-manifest",
+        dest="rule_manifests",
+        action="append",
+        default=None,
+        type=str,
+        help="Path to a rule manifest YAML/JSON file describing enabled rule packs.",
+    )
+    validate_parser.add_argument(
+        "--psrule-exec",
+        default="ps-rule",
+        help="Executable used to invoke PSRule for Azure.",
+    )
+    validate_parser.add_argument(
+        "--fail-on",
+        choices=[severity.value for severity in FindingSeverity],
+        default=FindingSeverity.HIGH.value,
+        help="Fail the run when findings at or above the provided severity are present.",
+    )
+    validate_parser.add_argument(
+        "--format",
+        choices=["table", "json"],
+        default="table",
+        help="Output format for validation results.",
+    )
+
+    return parser
+
+
+def create_service(
+    *,
+    psrule_executable: str = "ps-rule",
+    default_rule_manifests: Sequence[str] | None = None,
+) -> ComplianceService:
+    """Create a compliance service instance using PSRule and Terraform adapters."""
+
+    manager = RulePackManager()
+    normalizer = ResourceNormalizer()
+
+    default_manifests = list(default_rule_manifests or [])
+
+    def factory(manifests: Sequence[str] | None) -> PSRuleAdapter:
+        manifest_list = list(default_manifests)
+        if manifests:
+            manifest_list.extend(str(manifest) for manifest in manifests)
+        return PSRuleAdapter(
+            psrule_executable=psrule_executable,
+            rule_pack_manager=manager,
+            manifests=manifest_list,
+        )
+
+    return ComplianceService(rule_engine_factory=factory, normalizer=normalizer)
+
+
+def _normalize_modules(base_dir: Path, modules: Sequence[Path] | None) -> Sequence[Path]:
+    if not modules:
+        return ()
+    normalized: list[Path] = []
+    for module in modules:
+        candidate = module if module.is_absolute() else base_dir / module
+        normalized.append(candidate.resolve())
+    return normalized
+
+
+def _parse_env_values(values: Sequence[str] | None) -> Mapping[str, str]:
+    if not values:
+        return {}
+
+    env: dict[str, str] = {}
+    for value in values:
+        if "=" not in value:
+            raise ValueError(f"Environment variables must be in KEY=VALUE form: {value}")
+        key, raw = value.split("=", 1)
+        env[key] = raw
+    return env
+
+
+def _build_report(result: ValidationResult) -> ValidationReport:
+    return ValidationReport(findings=result.findings, metadata=result.metadata)
+
+
+def _format_report(
+    report: ValidationReport,
+    *,
+    fail_on: FindingSeverity,
+    output_format: str,
+) -> tuple[str, bool]:
     if output_format not in {"table", "json"}:
         raise ValueError("format must be either 'table' or 'json'")
 
@@ -167,44 +299,49 @@ def run_validation(
     return output, should_fail
 
 
-def build_parser() -> argparse.ArgumentParser:
-    """Construct the CLI argument parser."""
-
-    parser = argparse.ArgumentParser(prog="iac-compliance", description="IaC compliance CLI")
-    subparsers = parser.add_subparsers(dest="command")
-
-    validate_parser = subparsers.add_parser(
-        "validate", help="Validate Terraform plans or fixtures and report compliance findings."
-    )
-    validate_parser.add_argument(
-        "path",
-        type=Path,
-        help="Path to a directory containing expected-findings.json or to a JSON file itself.",
-    )
-    validate_parser.add_argument(
-        "--fail-on",
-        choices=[severity.value for severity in Severity],
-        default=Severity.ERROR.value,
-        help="Fail the run when findings at or above the provided severity are present.",
-    )
-    validate_parser.add_argument(
-        "--format",
-        choices=["table", "json"],
-        default="table",
-        help="Output format for validation results.",
-    )
-
-    return parser
-
-
 def _handle_validate(args: argparse.Namespace) -> int:
     try:
-        report = load_report(args.path)
+        env = _parse_env_values(args.env)
     except ValueError as exc:
         print(f"Error: {exc}")
         return 2
 
-    output, should_fail = run_validation(report, Severity(args.fail_on), args.format)
+    service = create_service(psrule_executable=args.psrule_exec)
+
+    working_dir = args.path.resolve()
+    plan_json = args.plan_json.resolve() if args.plan_json else None
+    plan_file = args.plan_file.resolve() if args.plan_file else None
+    modules = _normalize_modules(working_dir, args.modules)
+    var_files = [path.resolve() for path in args.var_files] if args.var_files else None
+    manifests = list(args.rule_manifests or [])
+
+    try:
+        result = service.validate(
+            working_dir,
+            plan_json_path=plan_json,
+            plan_file_path=plan_file,
+            module_paths=modules,
+            auto_discover_modules=args.auto_discover_modules,
+            var_files=var_files,
+            env=env,
+            inherit_environment=args.inherit_env,
+            terraform_bin=args.terraform_bin,
+            terragrunt_bin=args.terragrunt_bin,
+            force_terragrunt=args.force_terragrunt,
+            manifests=manifests,
+            severity_threshold=FindingSeverity(args.fail_on),
+        )
+    except (PlanLoaderError, RuleEvaluationError) as exc:
+        print(f"Error: {exc}")
+        return 2
+
+    report = _build_report(result)
+    output, should_fail = _format_report(
+        report,
+        fail_on=FindingSeverity(args.fail_on),
+        output_format=args.format,
+    )
+
     print(output)
     return 1 if should_fail else 0
 
@@ -230,3 +367,4 @@ def run() -> None:  # pragma: no cover - thin wrapper for module execution
 
 if __name__ == "__main__":  # pragma: no cover - module execution guard
     run()
+
