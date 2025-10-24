@@ -25,8 +25,29 @@
       }
     },
     {
-      "address": "module.app_service.azurerm_app_service.web",
-      "module_address": "module.app_service",
+      "address": "module.app.azurerm_app_service_plan.plan",
+      "module_address": "module.app",
+      "mode": "managed",
+      "type": "azurerm_app_service_plan",
+      "name": "plan",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "location": "eastus",
+          "name": "asp-shared",
+          "resource_group_name": "rg-apps",
+          "sku": {
+            "size": "S1",
+            "tier": "Standard"
+          }
+        }
+      }
+    },
+    {
+      "address": "module.app.azurerm_app_service.web",
+      "module_address": "module.app",
       "mode": "managed",
       "type": "azurerm_app_service",
       "name": "web",
@@ -49,8 +70,8 @@
       }
     },
     {
-      "address": "module.sql.azurerm_mssql_server.sql",
-      "module_address": "module.sql",
+      "address": "module.data.azurerm_mssql_server.sql",
+      "module_address": "module.data",
       "mode": "managed",
       "type": "azurerm_mssql_server",
       "name": "sql",
@@ -60,12 +81,42 @@
         "before": {
           "administrator_login": "sqladmin",
           "location": "eastus",
+          "minimum_tls_version": "1.0",
+          "public_network_access_enabled": true,
           "version": "12.0"
         },
         "after": {
           "administrator_login": "sqladmin",
           "location": "eastus2",
+          "minimum_tls_version": "1.2",
+          "public_network_access_enabled": false,
           "version": "12.0"
+        }
+      }
+    },
+    {
+      "address": "module.security.azurerm_key_vault.vault",
+      "module_address": "module.security",
+      "mode": "managed",
+      "type": "azurerm_key_vault",
+      "name": "vault",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "name": "kv-shared",
+          "location": "eastus2",
+          "resource_group_name": "rg-security",
+          "public_network_access_enabled": false,
+          "soft_delete_retention_days": 90,
+          "enable_rbac_authorization": true,
+          "network_acls": {
+            "default_action": "Deny",
+            "ip_rules": [
+              "10.20.0.0/24"
+            ]
+          }
         }
       }
     }
