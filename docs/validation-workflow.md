@@ -13,7 +13,12 @@
 - For template formats that do not require a plan (e.g., ARM/Bicep), feed files directly into supporting rule adapters.
 
 ## CLI Behaviour
-- Entry command shape: `iac-compliance validate [path] --config rules.yaml --format json|table --fail-on error`.
+- Entry command shape: `iac-compliance validate [path] --plan-json plan.json --rule-manifest rules.yaml --format json|table --fail-on high`.
+- Key flags:
+  - `--plan-json` / `--plan-file` to ingest existing plan artifacts and skip Terraform execution.
+  - `--module` / `--no-auto-discover` for explicit module selection.
+  - `--var-file`, `--env`, `--inherit-env` forwarding execution context to Terraform and PSRule.
+  - `--rule-manifest` and `--psrule-exec` controlling the PSRule adapter configuration.
 - Outputs:
   - Terminal table summarizing findings with severity, rule ID, resource, and remediation.
   - Optional JSON report for integrations and artifact storage.

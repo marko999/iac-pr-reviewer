@@ -12,7 +12,10 @@ from compliance_service.normalization import ResourceNormalizer
 @pytest.fixture()
 def azure_plan() -> dict:
     fixture_path = (
-        Path(__file__).parent.parent / "fixtures" / "azure" / "app_service_storage_plan.json"
+        Path(__file__).parent.parent
+        / "fixtures"
+        / "azure"
+        / "app_service_storage_plan.json"
     )
     return json.loads(fixture_path.read_text())
 
