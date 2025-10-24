@@ -77,14 +77,21 @@ jobs:
 
       - name: Expose PSRule wrapper
         run: |
-          cat <<'EOF' > "$RUNNER_TEMP/ps-rule"
-          #!/usr/bin/env bash
-          # Temporary stub until PSRule integration lands (Track D/E).
-          cat <<'JSON'
-          {"results":[]}
-          JSON
-          EOF
-          chmod +x "$RUNNER_TEMP/ps-rule"
+          set -euo pipefail
+
+          psrule_path="$(python - <<'PY'
+import importlib.resources
+
+path = importlib.resources.files('compliance_service.rules') / 'run_psrule.ps1'
+print(path)
+PY
+)"
+
+          psrule_path="${psrule_path%$'\r'}"
+          psrule_path="${psrule_path%$'\n'}"
+
+          ln -sfn "$psrule_path" "$RUNNER_TEMP/ps-rule"
+          chmod +x "$psrule_path"
           echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
 
       - name: Resolve validation configuration
