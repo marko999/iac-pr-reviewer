@@ -1,0 +1,20 @@
+{
+  "metadata": {
+    "resource": "Azure Storage Account",
+    "variant": "non_compliant"
+  },
+  "findings": [
+    {
+      "rule_id": "AZR-STR-001",
+      "resource": "azurerm_storage_account.example",
+      "severity": "error",
+      "description": "Storage accounts must enforce HTTPS and disallow public network access."
+    },
+    {
+      "rule_id": "AZR-STR-002",
+      "resource": "azurerm_storage_account.example",
+      "severity": "warning",
+      "description": "Enable infrastructure encryption for storage accounts storing sensitive data."
+    }
+  ]
+}
