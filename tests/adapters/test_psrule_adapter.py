@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -81,7 +82,8 @@ def test_evaluate_invokes_psrule(monkeypatch, tmp_path):
 
     findings = adapter.evaluate(resources)
 
-    assert recorded["command"][:3] == ["ps-rule", "run", "--input-path"]
+    assert Path(recorded["command"][0]).name == "run_psrule.ps1"
+    assert recorded["command"][1:3] == ["run", "--input-path"]
     assert "--module" in recorded["command"]
     assert "--source" in recorded["command"]
     assert {item["address"] for item in recorded["payload"]} == {

@@ -57,15 +57,14 @@ jobs:
             }
           }
 
-      - name: Create ps-rule shim
+      - name: Expose PSRule wrapper
         run: |
-          cat <<'EOF' > "$RUNNER_TEMP/ps-rule"
-          #!/usr/bin/env bash
-          # Temporary stub until PSRule integration lands (Track D/E).
-          cat <<'JSON'
-          {"results":[]}
-JSON
-          EOF
+          WRAPPER=$(python - <<'PY'
+import importlib.resources as resources
+print(resources.files("compliance_service.rules") / "run_psrule.ps1")
+PY
+          )
+          ln -sf "$WRAPPER" "$RUNNER_TEMP/ps-rule"
           chmod +x "$RUNNER_TEMP/ps-rule"
           echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
 
