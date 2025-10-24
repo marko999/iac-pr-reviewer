@@ -26,5 +26,23 @@ See the [Implementation Plan](docs/implementation-plan.md) for the eight workstr
 ## Getting Started
 Tooling is under active development. Once the CLI skeleton lands, this section will include prerequisites, installation steps, and quick-start commands (`iac-compliance validate examples/azure/storageaccount`). For now, follow the documentation in `docs/` when contributing.
 
+### Python 3.11 Virtual Environment
+
+1. Create and activate a Python 3.11 virtual environment:
+
+   ```bash
+   python3.11 -m venv .venv
+   source .venv/bin/activate
+   ```
+
+2. Upgrade packaging tools and install the development dependencies:
+
+   ```bash
+   pip install --upgrade pip
+   pip install -e .[dev]
+   ```
+
+3. Run formatters, linters, or tests from the activated environment (for example, `ruff check`, `black`, or `pytest`).
+
 ## Contributing
 Issues and pull requests are welcome as we bootstrap the project. Please keep the documentation up to date when adding features, and coordinate across tracks to maintain parallel velocity.
