@@ -4,7 +4,7 @@ Infrastructure-as-code (IaC) teams need fast feedback on governance, cost, and n
 
 ## What We're Building
 - **Rule-driven validation engine:** Modular compliance service centring on PSRule for Azure with adapters for future rule engines.
-- **Terraform-first workflow:** Generate Terraform/Terragrunt plans, normalize results, and evaluate policies with actionable remediation guidance.
+- **Terraform-first workflow:** Ingest plan artifacts from CI when available (with local plan generation as fallback), normalize results, and evaluate policies with actionable remediation guidance.
 - **Developer-friendly outputs:** Human-readable CLI summaries, JSON reports, and GitHub annotations tuned for iterative fixes.
 - **Built-in integration points:** Reusable GitHub Actions workflow and a PR reviewer agent that comments on policy issues automatically.
 

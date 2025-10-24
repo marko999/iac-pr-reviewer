@@ -12,7 +12,7 @@
 
 ## Core Components
 - `ComplianceService`: Entry point that orchestrates loading IaC assets, generating Terraform plans, invoking engine adapters, and consolidating results.
-- `PlanLoader`: Handles Terraform `plan -out` and `show -json` execution, including temp workspace management and Terragrunt detection.
+- `PlanLoader`: Ingests existing plan artifacts (binary `.tfplan` or JSON) when provided, otherwise runs Terraform `plan -out` and `show -json`, including temp workspace management and Terragrunt detection.
 - `ResourceNormalizer`: Converts Terraform plan JSON (and other template formats) into a consistent resource graph consumed by adapters.
 - `ReportAggregator`: Merges findings, applies severity thresholds, and produces CLI/JSON outputs.
 - `RulePackManager`: Loads rule manifests (YAML) that enable/disable rule groups without code changes.

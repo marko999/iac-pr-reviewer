@@ -7,10 +7,10 @@ This plan outlines the workstreams required to deliver the first iteration of th
 - Establish repository layout: `src/compliance_service/`, `src/compliance_service/adapters/`, `src/compliance_service/cli/`, `src/compliance_service/models/`.
 - Configure development tooling: `pyproject.toml`, linting (`ruff`), formatting (`black`), testing (`pytest`), Makefile, and optional pre-commit hooks.
 
-## Track B – Terraform Pipeline
-- Implement `PlanLoader` handling temp workspaces, `terraform init/plan`, `terraform show -json`, and Terragrunt detection.
-- Provide configuration for module discovery, variable files, and environment isolation.
-- Add unit tests mocking Terraform subprocess calls plus plan JSON fixtures for repeatability.
+## Track B – Plan Ingestion Pipeline
+- Implement `PlanLoader` that first looks for supplied plan artifacts (`--plan-json`, `--plan-file`) and parses them; only falls back to running `terraform init/plan` + `terraform show -json` when no artifact exists.
+- Provide configuration for module discovery, variable files, and environment isolation for the fallback execution path, including Terragrunt detection.
+- Add unit tests covering both artifact ingestion and mocked Terraform subprocess calls, plus plan JSON fixtures for repeatability.
 
 ## Track C – Normalization Layer
 - Build `ResourceNormalizer` translating plan JSON to internal models, capturing module paths, change actions, and key attributes.

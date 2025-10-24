@@ -1,11 +1,11 @@
 # Validation Workflow & Testing Strategy
 
 ## Terraform Execution
-- Default behaviour: unpack user submission into a temp workspace, run `terraform init`, then `terraform plan -out=plan.tfplan`.
-- Convert the plan to JSON via `terraform show -json plan.tfplan` for downstream processing.
-- Support `--working-dir` and `--var-file` flags to target specific modules or variable sets.
-- Detect Terragrunt configuration (presence of `terragrunt.hcl`) and switch to `terragrunt plan` when appropriate.
-- Provide a dry-run option that skips remote applies but allows optional full execution for future integration tests.
+- Primary workflow: consume an existing plan artifact (`plan.tfplan` or pre-generated JSON) produced by CI. When JSON is supplied, skip Terraform entirely and proceed to normalization.
+- Fallback workflow: if no plan artifact is provided, unpack the submission into a temp workspace, run `terraform init`, then `terraform plan -out=plan.tfplan`, followed by `terraform show -json plan.tfplan`.
+- Support `--plan-file`, `--plan-json`, and `--working-dir` flags so users can point at artifacts or force local execution.
+- Detect Terragrunt configuration (presence of `terragrunt.hcl`) and switch to `terragrunt plan` when the fallback path runs.
+- Provide a dry-run mode to avoid remote applies while still enabling optional full execution during future integration testing.
 
 ## Plan Normalization
 - Parse the plan JSON into a collection of resources with attributes: `type`, `name`, `address`, `change_actions`, and relevant properties.
