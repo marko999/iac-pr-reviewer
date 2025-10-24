@@ -50,11 +50,14 @@ class PSRuleAdapter(RuleEngineAdapter):
         "warning": FindingSeverity.MEDIUM,
         "moderate": FindingSeverity.MEDIUM,
         "medium": FindingSeverity.MEDIUM,
+        "advisory": FindingSeverity.MEDIUM,
         "major": FindingSeverity.HIGH,
         "important": FindingSeverity.HIGH,
         "high": FindingSeverity.HIGH,
+        "error": FindingSeverity.HIGH,
         "critical": FindingSeverity.CRITICAL,
         "severe": FindingSeverity.CRITICAL,
+        "fatal": FindingSeverity.CRITICAL,
     }
 
     def __init__(
@@ -77,6 +80,9 @@ class PSRuleAdapter(RuleEngineAdapter):
     ) -> List[Finding]:
         packs = self.rule_pack_manager.enabled_packs(self.manifests)
         payload = [self._serialize_resource(resource) for resource in resources]
+        severity_overrides: Dict[str, FindingSeverity] = {}
+        for pack in packs:
+            severity_overrides.update(pack.severity_overrides)
 
         with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False) as handle:
             json.dump(payload, handle)
@@ -96,7 +102,11 @@ class PSRuleAdapter(RuleEngineAdapter):
         if result.returncode != 0:
             raise RuleEvaluationError(result.stderr or "PSRule execution failed")
 
-        findings = self._parse_results(result.stdout or "{}", resources)
+        findings = self._parse_results(
+            result.stdout or "{}",
+            resources,
+            severity_overrides=severity_overrides,
+        )
 
         if severity_threshold is None:
             return findings
@@ -136,6 +146,8 @@ class PSRuleAdapter(RuleEngineAdapter):
         self,
         stdout: str,
         resources: Sequence[NormalizedResource],
+        *,
+        severity_overrides: Mapping[str, FindingSeverity] | None = None,
     ) -> List[Finding]:
         try:
             data = json.loads(stdout or "{}")
@@ -159,6 +171,8 @@ class PSRuleAdapter(RuleEngineAdapter):
                 continue
 
             severity = self._normalize_severity(entry.get("level") or entry.get("severity"))
+            if severity_overrides and rule_id in severity_overrides:
+                severity = severity_overrides[rule_id]
             message = str(entry.get("message") or entry.get("description") or "").strip()
             target_id = entry.get("targetId") or entry.get("target")
             target_address = str(target_id) if target_id else ""
