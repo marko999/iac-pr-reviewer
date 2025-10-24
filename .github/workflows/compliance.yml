@@ -35,7 +35,7 @@ jobs:
           pip install .
 
       - name: Set up PowerShell Core
-        uses: PowerShell/PowerShell@v1
+        uses: actions/setup-pwsh@v2
         with:
           pwsh-version: '7.4'
 
