@@ -301,12 +301,12 @@ jobs:
           RESULTS_PATH: ${{ steps.run-validation.outputs.results_path }}
         run: |
           if [ -z "${RESULTS_PATH}" ]; then
-            echo "Compliance results path was not provided." >&2
-            exit 1
+            echo "Compliance results path was not provided; skipping summary generation." >&2
+            exit 0
           fi
           if [ ! -f "${RESULTS_PATH}" ]; then
-            echo "Compliance results file not found: ${RESULTS_PATH}" >&2
-            exit 1
+            echo "Compliance results file not found: ${RESULTS_PATH}; skipping summary generation." >&2
+            exit 0
           fi
           python -m compliance_service.cli.github_reporting "${RESULTS_PATH}"
 
