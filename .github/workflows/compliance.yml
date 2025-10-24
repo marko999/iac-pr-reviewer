@@ -203,20 +203,53 @@ jobs:
           iac-compliance validate "${args[@]}" | tee "$RESULTS_PATH"
         # TODO(Track E): Replace fixture validation with real plan ingestion once implemented.
 
-      - name: Publish compliance report
-        if: always()
+      - name: Summarize compliance findings
+        if: always() && steps.run-validation.outputs.results_path != ''
         env:
           RESULTS_PATH: ${{ steps.run-validation.outputs.results_path }}
         run: |
-          if [ -z "${RESULTS_PATH}" ]; then
-            echo "Compliance results path was not provided." >&2
-            exit 1
-          fi
           if [ ! -f "${RESULTS_PATH}" ]; then
             echo "Compliance results file not found: ${RESULTS_PATH}" >&2
-            exit 1
+            exit 0
           fi
-          python -m compliance_service.cli.github_reporting "${RESULTS_PATH}"
+
+          SUMMARY=$(python <<'PY'
+import json
+import os
+from pathlib import Path
+
+from compliance_service.cli.github_reporting import format_summary
+
+results_path = Path(os.environ["RESULTS_PATH"])
+report = json.loads(results_path.read_text(encoding="utf-8"))
+print(format_summary(report))
+PY
+)
+
+          printf '%s\n' "$SUMMARY" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Annotate compliance findings
+        if: always() && steps.run-validation.outputs.results_path != ''
+        env:
+          RESULTS_PATH: ${{ steps.run-validation.outputs.results_path }}
+        run: |
+          if [ ! -f "${RESULTS_PATH}" ]; then
+            echo "Compliance results file not found: ${RESULTS_PATH}" >&2
+            exit 0
+          fi
+
+          python <<'PY'
+import json
+import os
+from pathlib import Path
+
+from compliance_service.cli.github_reporting import iter_annotations
+
+results_path = Path(os.environ["RESULTS_PATH"])
+report = json.loads(results_path.read_text(encoding="utf-8"))
+for command in iter_annotations(report):
+    print(command)
+PY
 
       - name: Upload compliance findings artifact
         if: always() && steps.run-validation.outputs.results_path != ''

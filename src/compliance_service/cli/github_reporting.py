@@ -6,7 +6,7 @@ import argparse
 import json
 import os
 from pathlib import Path
-from typing import Iterable, Mapping, MutableMapping, Sequence
+from typing import Iterable, Mapping, MutableMapping, Sequence, Tuple
 
 SEVERITY_ORDER = ["critical", "high", "medium", "low", "info"]
 ANNOTATION_LEVELS = {
@@ -99,6 +99,9 @@ def iter_annotations(report: Mapping[str, object]) -> Iterable[str]:
         message = str(finding.get("message", "")).strip()
         resource = finding.get("resource") or {}
         resource_address = str(resource.get("address", "")).strip()
+        metadata: Mapping[str, object] = finding.get("metadata") or {}
+
+        file_path, line, end_line, column, end_column = _extract_annotation_location(metadata)
 
         title_parts: list[str] = []
         if severity:
@@ -116,7 +119,107 @@ def iter_annotations(report: Mapping[str, object]) -> Iterable[str]:
         body = "; ".join(body_parts)
         body = body.replace("%", "%25").replace("\r", "").replace("\n", "%0A")
 
-        yield f"::{level} title={title}::{body}"
+        attributes: list[str] = []
+        if file_path:
+            attributes.append(f"file={file_path}")
+        if line is not None:
+            attributes.append(f"line={line}")
+        if end_line is not None and end_line != line:
+            attributes.append(f"endLine={end_line}")
+        if column is not None:
+            attributes.append(f"col={column}")
+        if end_column is not None and (end_column != column or column is None):
+            attributes.append(f"endColumn={end_column}")
+        if title:
+            attributes.append(f"title={title}")
+
+        attribute_segment = ""
+        if attributes:
+            attribute_segment = " " + ",".join(attributes)
+
+        yield f"::{level}{attribute_segment}::{body}"
+
+
+def _extract_annotation_location(
+    metadata: Mapping[str, object]
+) -> Tuple[str | None, int | None, int | None, int | None, int | None]:
+    """Extract file and position details from finding metadata."""
+
+    if not isinstance(metadata, Mapping):
+        return None, None, None, None, None
+
+    file_path = _first_non_empty_str(
+        metadata,
+        "file_path",
+        "filepath",
+        "file",
+        "path",
+        "source_file",
+        "target_file",
+    )
+    line = _coerce_int(_first_value(metadata, "line", "line_number", "start_line", "source_line"))
+    end_line = _coerce_int(_first_value(metadata, "end_line", "end_line_number", "stop_line"))
+    column = _coerce_int(
+        _first_value(metadata, "column", "col", "start_column", "column_number", "source_column")
+    )
+    end_column = _coerce_int(_first_value(metadata, "end_column", "end_col", "stop_column"))
+
+    for nested_key in ("source", "location", "range"):
+        nested = metadata.get(nested_key)
+        if isinstance(nested, Mapping):
+            nested_path, nested_line, nested_end_line, nested_col, nested_end_col = (
+                _extract_annotation_location(nested)
+            )
+            if not file_path:
+                file_path = nested_path
+            if line is None:
+                line = nested_line
+            if end_line is None:
+                end_line = nested_end_line
+            if column is None:
+                column = nested_col
+            if end_column is None:
+                end_column = nested_end_col
+
+    return file_path, line, end_line, column, end_column
+
+
+def _first_value(metadata: Mapping[str, object], *keys: str) -> object | None:
+    for key in keys:
+        if key in metadata:
+            value = metadata[key]
+            if value is not None:
+                return value
+    return None
+
+
+def _first_non_empty_str(metadata: Mapping[str, object], *keys: str) -> str | None:
+    value = _first_value(metadata, *keys)
+    if isinstance(value, str):
+        trimmed = value.strip()
+        if trimmed:
+            return trimmed
+    return None
+
+
+def _coerce_int(value: object | None) -> int | None:
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        if value != value or value in (float("inf"), float("-inf")):
+            return None
+        return int(value)
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return None
+        try:
+            return int(stripped)
+        except ValueError:
+            return None
+    return None
 
 
 def _load_report(path: Path) -> Mapping[str, object]:
