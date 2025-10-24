@@ -8,53 +8,125 @@ import pytest
 from compliance_service.models import ChangeAction
 from compliance_service.normalization import ResourceNormalizer
 
+PLAN_EXPECTATIONS: dict[str, dict[str, object]] = {
+    "app_service_storage_plan.json": {
+        "count": 5,
+        "resources": {
+            "azurerm_storage_account.storage": {
+                "module_path": [],
+                "action": ChangeAction.CREATE,
+                "after": {"account_kind": "StorageV2"},
+            },
+            "module.app.azurerm_app_service_plan.plan": {
+                "module_path": ["app"],
+                "action": ChangeAction.CREATE,
+                "after": {"sku": {"tier": "Standard"}},
+            },
+            "module.app.azurerm_app_service.web": {
+                "module_path": ["app"],
+                "action": ChangeAction.UPDATE,
+                "before": {"https_only": False},
+                "after": {"https_only": True},
+            },
+            "module.data.azurerm_mssql_server.sql": {
+                "module_path": ["data"],
+                "action": ChangeAction.REPLACE,
+                "before": {"public_network_access_enabled": True},
+                "after": {"public_network_access_enabled": False},
+            },
+            "module.security.azurerm_key_vault.vault": {
+                "module_path": ["security"],
+                "action": ChangeAction.CREATE,
+                "after": {"public_network_access_enabled": False},
+            },
+        },
+    },
+    "app_service.json": {
+        "count": 3,
+        "resources": {
+            "azurerm_resource_group.example": {
+                "module_path": [],
+                "action": ChangeAction.CREATE,
+                "after": {"name": "rg-web-compliant"},
+            },
+            "azurerm_app_service_plan.example": {
+                "module_path": [],
+                "action": ChangeAction.CREATE,
+                "after": {"sku": {"tier": "Standard"}},
+            },
+            "azurerm_app_service.example": {
+                "module_path": [],
+                "action": ChangeAction.UPDATE,
+                "before": {"https_only": False},
+                "after": {"https_only": True},
+            },
+        },
+    },
+    "key_vault.json": {
+        "count": 1,
+        "resources": {
+            "azurerm_key_vault.example": {
+                "module_path": [],
+                "action": ChangeAction.UPDATE,
+                "before": {"public_network_access_enabled": True},
+                "after": {"public_network_access_enabled": False},
+            }
+        },
+    },
+    "sql_server.json": {
+        "count": 1,
+        "resources": {
+            "azurerm_mssql_server.example": {
+                "module_path": [],
+                "action": ChangeAction.UPDATE,
+                "before": {"minimum_tls_version": "1.0"},
+                "after": {"minimum_tls_version": "1.2"},
+            }
+        },
+    },
+}
 
-@pytest.fixture()
-def azure_plan() -> dict:
+
+@pytest.mark.parametrize("fixture_name", sorted(PLAN_EXPECTATIONS))
+def test_normalizes_resource_changes(fixture_name: str) -> None:
     fixture_path = (
-        Path(__file__).parent.parent
-        / "fixtures"
-        / "azure"
-        / "app_service_storage_plan.json"
+        Path(__file__).parent.parent / "fixtures" / "azure" / fixture_name
     )
-    return json.loads(fixture_path.read_text())
+    plan = json.loads(fixture_path.read_text())
 
-
-def test_normalizes_resource_changes(azure_plan: dict) -> None:
     normalizer = ResourceNormalizer()
+    resources = normalizer.normalize(plan)
 
-    resources = normalizer.normalize(azure_plan)
+    expectation = PLAN_EXPECTATIONS[fixture_name]
 
-    assert len(resources) == 5
+    assert len(resources) == expectation["count"]
 
     indexed = {resource.address: resource for resource in resources}
+    assert set(indexed) == set(expectation["resources"])
 
-    storage = indexed["azurerm_storage_account.storage"]
-    assert storage.module_path == []
-    assert storage.change_action is ChangeAction.CREATE
-    assert storage.after and storage.after["account_kind"] == "StorageV2"
+    for address, expected in expectation["resources"].items():
+        resource = indexed[address]
+        assert resource.module_path == expected.get("module_path", [])
+        assert resource.change_action is expected["action"]
 
-    app_plan = indexed["module.app.azurerm_app_service_plan.plan"]
-    assert app_plan.module_path == ["app"]
-    assert app_plan.change_action is ChangeAction.CREATE
-    assert app_plan.after and app_plan.after["sku"]["tier"] == "Standard"
+        before_expectation = expected.get("before")
+        if before_expectation:
+            assert resource.before is not None
+            for key, value in before_expectation.items():
+                assert resource.before.get(key) == value
 
-    app_service = indexed["module.app.azurerm_app_service.web"]
-    assert app_service.module_path == ["app"]
-    assert app_service.change_action is ChangeAction.UPDATE
-    assert app_service.before and app_service.before["https_only"] is False
-    assert app_service.after and app_service.after["https_only"] is True
-
-    sql = indexed["module.data.azurerm_mssql_server.sql"]
-    assert sql.change_action is ChangeAction.REPLACE
-    assert sql.module_path == ["data"]
-    assert sql.before and sql.before["public_network_access_enabled"] is True
-    assert sql.after and sql.after["public_network_access_enabled"] is False
-
-    key_vault = indexed["module.security.azurerm_key_vault.vault"]
-    assert key_vault.module_path == ["security"]
-    assert key_vault.change_action is ChangeAction.CREATE
-    assert key_vault.after and key_vault.after["public_network_access_enabled"] is False
+        after_expectation = expected.get("after")
+        if after_expectation:
+            assert resource.after is not None
+            for key, value in after_expectation.items():
+                # nested dictionaries (e.g. sku) are compared shallowly
+                actual = resource.after.get(key)
+                if isinstance(value, dict):
+                    assert isinstance(actual, dict)
+                    for nested_key, nested_value in value.items():
+                        assert actual.get(nested_key) == nested_value
+                else:
+                    assert actual == value
 
 
 def test_handles_missing_sections() -> None:
