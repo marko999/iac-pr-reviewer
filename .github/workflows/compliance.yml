@@ -70,7 +70,7 @@ jobs:
           # Temporary stub until PSRule integration lands (Track D/E).
           cat <<'JSON'
           {"results":[]}
-JSON
+          JSON
           EOF
           chmod +x "$RUNNER_TEMP/ps-rule"
           echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
