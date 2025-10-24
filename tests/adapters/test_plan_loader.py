@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import os
 from pathlib import Path
@@ -49,7 +51,7 @@ def test_generate_plan_runs_terraform(monkeypatch, tmp_path):
     module_dir = tmp_path / "module_a"
     module_dir.mkdir()
     (module_dir / "main.tf").write_text(
-        'resource "null_resource" "example" {}',
+        "resource \"null_resource\" \"example\" {}",
         encoding="utf-8",
     )
 
