@@ -17,6 +17,9 @@ dependencies = [
     "pyyaml>=6.0",
 ]
 
+[project.scripts]
+iac-compliance = "compliance_service.cli.app:run"
+
 [project.optional-dependencies]
 dev = [
     "black>=23.12",

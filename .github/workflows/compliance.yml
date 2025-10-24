@@ -14,7 +14,8 @@ jobs:
     name: Run IaC compliance checks
     runs-on: ubuntu-latest
     env:
-      TF_WORKING_DIR: examples/azure/storageaccount # TODO(Track E): Allow repositories to override the module directory.
+      TF_WORKING_DIR: examples/azure/storage_account # TODO(Track E): Allow repositories to override the module directory.
+      VALIDATION_TARGET: examples/azure/storage_account/compliant # TODO(Track E): Detect target modules dynamically from repo metadata.
       COMPLIANCE_FAIL_ON: error # TODO(Track E): Wire through CLI defaults or workflow inputs for severity gating.
       PSRULE_MODULES: PSRule.Rules.Azure
 
@@ -74,20 +75,11 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform init -input=false
 
-      - name: Terraform plan
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform plan -out=tfplan -input=false
-
-      - name: Export plan to JSON
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform show -json tfplan > tfplan.json
-
       - name: Run IaC compliance validation
         run: |
-          iac-compliance validate "${{ env.TF_WORKING_DIR }}" \
-            --plan-json "${{ env.TF_WORKING_DIR }}/tfplan.json" \
+          iac-compliance validate "${{ env.VALIDATION_TARGET }}" \
             --fail-on "${{ env.COMPLIANCE_FAIL_ON }}"
-        # TODO(Track E): Confirm CLI flags once reporting and output formats stabilize.
+        # TODO(Track E): Replace fixture validation with real plan ingestion once implemented.
 
       # TODO(Track E): Publish job summary and annotations once reporting helpers land.
       # TODO(Track E): Upload structured findings artifact for downstream tooling.
