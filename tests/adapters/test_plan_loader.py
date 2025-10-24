@@ -7,7 +7,6 @@ import pytest
 
 from compliance_service.adapters import PlanLoader, PlanLoaderError
 
-
 FIXTURES = Path(__file__).resolve().parent.parent / "fixtures"
 
 
@@ -49,7 +48,10 @@ def test_load_plan_from_plan_file(monkeypatch, tmp_path):
 def test_generate_plan_runs_terraform(monkeypatch, tmp_path):
     module_dir = tmp_path / "module_a"
     module_dir.mkdir()
-    (module_dir / "main.tf").write_text("resource \"null_resource\" \"example\" {}", encoding="utf-8")
+    (module_dir / "main.tf").write_text(
+        'resource "null_resource" "example" {}',
+        encoding="utf-8",
+    )
 
     var_file = tmp_path / "vars.tfvars"
     var_file.write_text("region=\"eastus\"", encoding="utf-8")
@@ -81,7 +83,9 @@ def test_generate_plan_runs_terraform(monkeypatch, tmp_path):
     assert data == {"module": "example"}
 
     plan_command = next(cmd for cmd in commands if cmd["args"][1] == "plan")
-    assert any(arg.endswith(str(var_file.resolve())) for arg in plan_command["args"])  # -var-file path
+    assert any(
+        arg.endswith(str(var_file.resolve())) for arg in plan_command["args"]
+    )  # -var-file path
     assert plan_command["env"]["TF_VAR_region"] == "eastus"
     assert plan_command["env"]["PATH"] == os.environ.get("PATH", "")
 
