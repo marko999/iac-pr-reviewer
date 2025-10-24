@@ -3,7 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from compliance_service.rules import RulePackManager, RulePackError
+from compliance_service.models import FindingSeverity
+from compliance_service.rules import RulePackError, RulePackManager
 
 
 def write_manifest(tmp_path: Path, name: str, content: str) -> Path:
@@ -25,6 +26,10 @@ def test_merges_default_and_override_manifests(tmp_path: Path):
                         "module": "PSRule.Rules.Azure",
                         "source": "baseline.yaml",
                         "settings": {"severity": "Major"},
+                        "severity": {
+                            "PSRule.Azure.Storage.Account.DenyPublicNetworkAccess": "high",
+                            "PSRule.Azure.AppService.RequireHttps": "medium",
+                        },
                     }
                 ]
             },
@@ -42,6 +47,9 @@ def test_merges_default_and_override_manifests(tmp_path: Path):
                         "name": "azureBaseline",
                         "enabled": False,
                         "settings": {"severity": "Critical"},
+                        "severity": {
+                            "PSRule.Azure.Storage.Account.DenyPublicNetworkAccess": "critical",
+                        },
                     },
                     {"name": "azureNaming", "module": "Custom.Rules.Naming"},
                 ]
@@ -61,6 +69,10 @@ def test_merges_default_and_override_manifests(tmp_path: Path):
     assert baseline.module == "PSRule.Rules.Azure"
     assert baseline.source == "baseline.yaml"
     assert baseline.settings["severity"] == "Critical"
+    assert baseline.severity_overrides == {
+        "PSRule.Azure.Storage.Account.DenyPublicNetworkAccess": FindingSeverity.CRITICAL,
+        "PSRule.Azure.AppService.RequireHttps": FindingSeverity.MEDIUM,
+    }
 
     naming = packs_by_name["azureNaming"]
     assert naming.enabled is True
@@ -68,6 +80,21 @@ def test_merges_default_and_override_manifests(tmp_path: Path):
 
     enabled = manager.enabled_packs([override_manifest])
     assert [pack.name for pack in enabled] == ["azureNaming"]
+
+
+def test_default_manifest_loaded():
+    manager = RulePackManager()
+    packs = manager.enabled_packs()
+
+    pack_names = {pack.name for pack in packs}
+    assert "azureBaseline" in pack_names
+
+    baseline = next(pack for pack in packs if pack.name == "azureBaseline")
+    assert baseline.module == "PSRule.Rules.Azure"
+    assert baseline.settings["baseline"] == "Azure"
+    assert baseline.severity_overrides[
+        "PSRule.Azure.Storage.Account.DenyPublicNetworkAccess"
+    ] == FindingSeverity.CRITICAL
 
 
 def test_missing_manifest_raises(tmp_path: Path):

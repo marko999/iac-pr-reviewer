@@ -33,9 +33,15 @@ class PlanLoader:
         self.working_dir = Path(working_dir).resolve()
         self.plan_json_path = Path(plan_json_path).resolve() if plan_json_path else None
         self.plan_file_path = Path(plan_file_path).resolve() if plan_file_path else None
-        self.module_paths = [Path(path).resolve() for path in module_paths] if module_paths else None
+        self.module_paths = (
+            [Path(path).resolve() for path in module_paths]
+            if module_paths
+            else None
+        )
         self.auto_discover_modules = auto_discover_modules
-        self.var_files = [str(Path(path).resolve()) for path in var_files] if var_files else []
+        self.var_files = (
+            [str(Path(path).resolve()) for path in var_files] if var_files else []
+        )
         self.env = env or {}
         self.inherit_environment = inherit_environment
         self.terraform_bin = terraform_bin
@@ -210,4 +216,3 @@ class PlanLoader:
 
 
 __all__ = ["PlanLoader", "PlanLoaderError"]
-

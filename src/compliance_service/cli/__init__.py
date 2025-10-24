@@ -1,25 +1,20 @@
-"""Command-line interface package for the compliance tooling."""
+"""CLI exports for the compliance service."""
 
 from .app import (
-    FINDINGS_FILENAME,
-    Finding,
-    Severity,
     ValidationReport,
     build_parser,
-    load_report,
+    create_service,
     main,
+    render_table,
     run,
-    run_validation,
 )
 
 __all__ = [
-    "FINDINGS_FILENAME",
-    "Finding",
-    "Severity",
     "ValidationReport",
     "build_parser",
-    "load_report",
+    "create_service",
     "main",
+    "render_table",
     "run",
-    "run_validation",
 ]
+
