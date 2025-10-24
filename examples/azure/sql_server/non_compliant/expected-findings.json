@@ -1,0 +1,20 @@
+{
+  "metadata": {
+    "resource": "Azure SQL Server",
+    "variant": "non_compliant"
+  },
+  "findings": [
+    {
+      "rule_id": "AZR-SQL-001",
+      "resource": "azurerm_mssql_server.example",
+      "severity": "error",
+      "description": "Azure SQL Servers must enforce TLS 1.2 or higher and disable public network access."
+    },
+    {
+      "rule_id": "AZR-SQL-002",
+      "resource": "azurerm_mssql_server.example",
+      "severity": "warning",
+      "description": "Use strong administrator credentials and enable managed identity for Azure SQL Servers."
+    }
+  ]
+}

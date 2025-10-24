@@ -1,0 +1,20 @@
+{
+  "metadata": {
+    "resource": "Azure Key Vault",
+    "variant": "non_compliant"
+  },
+  "findings": [
+    {
+      "rule_id": "AZR-KV-001",
+      "resource": "azurerm_key_vault.example",
+      "severity": "error",
+      "description": "Key Vault instances must disable public network access and restrict the default action to Deny."
+    },
+    {
+      "rule_id": "AZR-KV-002",
+      "resource": "azurerm_key_vault.example",
+      "severity": "warning",
+      "description": "Enable purge protection and RBAC to safeguard secrets from accidental deletion."
+    }
+  ]
+}
