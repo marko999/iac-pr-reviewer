@@ -1,8 +1,9 @@
 # Validation Workflow & Testing Strategy
 
 ## Terraform Execution
-- Primary workflow: consume an existing plan artifact (`plan.tfplan` or pre-generated JSON) produced by CI. When JSON is supplied, skip Terraform entirely and proceed to normalization.
-- Fallback workflow: if no plan artifact is provided, unpack the submission into a temp workspace, run `terraform init`, then `terraform plan -out=plan.tfplan`, followed by `terraform show -json plan.tfplan`.
+- Primary workflow: check out the repository, determine the Terraform modules listed in `.github/iac-compliance.json`, and run `terraform init` / `terraform plan -out` for each module in an isolated temp directory.
+- Persist the generated plan output with `terraform show -json` and feed that JSON into the CLI (via `--plan-json`) to exercise the full ingestion pipeline.
+- When `plan_json` is explicitly provided via workflow inputs or configuration, reuse the supplied artifact and skip local plan generation.
 - Support `--plan-file`, `--plan-json`, and `--working-dir` flags so users can point at artifacts or force local execution.
 - Detect Terragrunt configuration (presence of `terragrunt.hcl`) and switch to `terragrunt plan` when the fallback path runs.
 - Provide a dry-run mode to avoid remote applies while still enabling optional full execution during future integration testing.

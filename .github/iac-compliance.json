@@ -1,5 +1,7 @@
 {
-  "plan_json": "tests/fixtures/azure/app_service_storage_plan.json",
   "fail_on": "high",
-  "rule_manifests": []
+  "rule_manifests": [],
+  "modules": [
+    "examples/azure/app_service/compliant"
+  ]
 }
