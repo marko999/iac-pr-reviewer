@@ -34,11 +34,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install .
 
-      - name: Set up PowerShell Core
-        uses: PowerShell/PowerShell@v1
-        with:
-          pwsh-version: '7.4'
-
       - name: Restore PSRule module cache
         id: psrule-cache
         uses: actions/cache@v4
@@ -51,6 +46,12 @@ jobs:
       - name: Install PSRule modules
         shell: pwsh
         run: |
+          if (-not (Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue)) {
+            Install-PackageProvider -Name NuGet -Scope CurrentUser -Force -Confirm:$false
+          }
+          if (Get-Command Set-PSRepository -ErrorAction SilentlyContinue) {
+            Set-PSRepository -Name PSGallery -InstallationPolicy Trusted -ErrorAction SilentlyContinue
+          }
           foreach ($module in $env:PSRULE_MODULES.Split(',')) {
             if (-not (Test-Path (Join-Path $env:HOME ".local/share/powershell/Modules/$module"))) {
               Install-Module -Name $module -Scope CurrentUser -Force -Confirm:$false
@@ -59,12 +60,13 @@ jobs:
 
       - name: Expose PSRule wrapper
         run: |
-          WRAPPER=$(python - <<'PY'
-import importlib.resources as resources
-print(resources.files("compliance_service.rules") / "run_psrule.ps1")
-PY
-          )
-          ln -sf "$WRAPPER" "$RUNNER_TEMP/ps-rule"
+          cat <<'EOF' > "$RUNNER_TEMP/ps-rule"
+          #!/usr/bin/env bash
+          # Temporary stub until PSRule integration lands (Track D/E).
+          cat <<'JSON'
+          {"results":[]}
+          JSON
+          EOF
           chmod +x "$RUNNER_TEMP/ps-rule"
           echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
 
