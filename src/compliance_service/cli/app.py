@@ -14,7 +14,6 @@ from ..normalization import ResourceNormalizer
 from ..rules import RulePackManager
 from ..service import ComplianceService, ValidationResult
 
-
 SEVERITY_RANK = {
     FindingSeverity.INFO: 0,
     FindingSeverity.LOW: 1,
@@ -158,7 +157,10 @@ def build_parser() -> argparse.ArgumentParser:
         dest="auto_discover_modules",
         action="store_false",
         default=True,
-        help="Disable module discovery and only evaluate the provided working directory or modules.",
+        help=(
+            "Disable module discovery and only evaluate the provided "
+            "working directory or modules."
+        ),
     )
     validate_parser.add_argument(
         "--var-file",

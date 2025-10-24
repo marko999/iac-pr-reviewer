@@ -17,7 +17,14 @@ class DummyPlanLoader:
         self.kwargs = kwargs
 
     def load_plan(self) -> dict[str, Any]:
-        return {"resource_changes": [{"address": "aws_s3_bucket.example", "change": {"actions": ["create"]}}]}
+        return {
+            "resource_changes": [
+                {
+                    "address": "aws_s3_bucket.example",
+                    "change": {"actions": ["create"]},
+                }
+            ]
+        }
 
 
 class DummyNormalizer(ResourceNormalizer):

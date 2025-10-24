@@ -6,6 +6,7 @@ import io
 import json
 from contextlib import redirect_stdout
 from pathlib import Path
+
 import pytest
 
 from compliance_service.cli import app
