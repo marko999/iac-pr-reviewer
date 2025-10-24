@@ -1,5 +1,12 @@
 # Compliance Architecture
 
+## Technology Stack
+- **Language runtime:** Python 3.11 to access modern typing (PEP 695) and match recommended ecosystem support.
+- **CLI framework:** [Typer](https://typer.tiangolo.com/) for ergonomic, type-driven command definitions.
+- **Data modeling:** [Pydantic](https://docs.pydantic.dev/) v2 for validation and serialization of normalized resources and findings.
+- **Terminal UX:** [Rich](https://rich.readthedocs.io/) for tables, progress reporting, and colorized output used by the CLI.
+- **Developer tooling:** Black, Ruff, and Pytest managed via `pyproject.toml`, with optional pre-commit hooks for consistent formatting and fast linting.
+
 ## Goals
 - Provide a modular compliance engine that supports naming, tagging, cost, and broader governance rules.
 - Reuse community-maintained Azure rules (PSRule for Azure) while keeping the door open for alternative engines.
