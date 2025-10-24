@@ -1,0 +1,7 @@
+{
+  "metadata": {
+    "resource": "Azure Key Vault",
+    "variant": "compliant"
+  },
+  "findings": []
+}
