@@ -1,0 +1,81 @@
+name: IaC Compliance Validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Run IaC compliance checks
+    runs-on: ubuntu-latest
+    env:
+      # TODO(Track E): Allow repositories to override the module directory.
+      VALIDATION_PLAN_JSON: tests/fixtures/azure/app_service_storage_plan.json
+      # TODO(Track E): Wire through CLI defaults or workflow inputs for severity gating.
+      COMPLIANCE_FAIL_ON: high
+      PSRULE_MODULES: PSRule.Rules.Azure
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install CLI dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+
+      - name: Set up PowerShell Core
+        uses: PowerShell/PowerShell@v1
+        with:
+          pwsh-version: '7.4'
+
+      - name: Restore PSRule module cache
+        id: psrule-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/powershell/Modules
+          key: ${{ runner.os }}-psrule-${{ hashFiles('rules/**/*.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-psrule-
+
+      - name: Install PSRule modules
+        shell: pwsh
+        run: |
+          foreach ($module in $env:PSRULE_MODULES.Split(',')) {
+            if (-not (Test-Path (Join-Path $env:HOME ".local/share/powershell/Modules/$module"))) {
+              Install-Module -Name $module -Scope CurrentUser -Force -Confirm:$false
+            }
+          }
+
+      - name: Create ps-rule shim
+        run: |
+          cat <<'EOF' > "$RUNNER_TEMP/ps-rule"
+          #!/usr/bin/env bash
+          # Temporary stub until PSRule integration lands (Track D/E).
+          cat <<'JSON'
+          {"results":[]}
+JSON
+          EOF
+          chmod +x "$RUNNER_TEMP/ps-rule"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+      - name: Run IaC compliance validation
+        run: |
+          iac-compliance validate \
+            --plan-json "${{ env.VALIDATION_PLAN_JSON }}" \
+            --format json \
+            --fail-on "${{ env.COMPLIANCE_FAIL_ON }}"
+        # TODO(Track E): Replace fixture validation with real plan ingestion once implemented.
+
+      # TODO(Track E): Publish job summary and annotations once reporting helpers land.
+      # TODO(Track E): Upload structured findings artifact for downstream tooling.
