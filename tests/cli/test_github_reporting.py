@@ -2,7 +2,15 @@
 
 from __future__ import annotations
 
-from compliance_service.cli.github_reporting import format_summary, iter_annotations
+from pathlib import Path
+
+import pytest
+
+from compliance_service.cli.github_reporting import (
+    _load_report,
+    format_summary,
+    iter_annotations,
+)
 
 
 def _build_report() -> dict[str, object]:
@@ -85,3 +93,26 @@ def test_iter_annotations_includes_location_metadata() -> None:
         "Secure transfer should be enabled."
     )
     assert annotations == [expected]
+
+
+def test_load_report_handles_empty_file(tmp_path: Path) -> None:
+    """Empty report files should be treated as no findings instead of failing."""
+
+    report_path = tmp_path / "report.json"
+    report_path.write_text("\n", encoding="utf-8")
+
+    report = _load_report(report_path)
+
+    assert report == {}
+
+
+def test_load_report_raises_for_invalid_json(tmp_path: Path) -> None:
+    """Clearly invalid JSON should raise a helpful error."""
+
+    report_path = tmp_path / "report.json"
+    report_path.write_text("not json", encoding="utf-8")
+
+    with pytest.raises(ValueError) as excinfo:
+        _load_report(report_path)
+
+    assert "Failed to parse report JSON" in str(excinfo.value)
