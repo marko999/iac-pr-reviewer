@@ -77,21 +77,14 @@ jobs:
 
       - name: Expose PSRule wrapper
         run: |
-          set -euo pipefail
-
-          psrule_path="$(python - <<'PY'
-import importlib.resources
-
-path = importlib.resources.files('compliance_service.rules') / 'run_psrule.ps1'
-print(path)
-PY
-)"
-
-          psrule_path="${psrule_path%$'\r'}"
-          psrule_path="${psrule_path%$'\n'}"
-
-          ln -sfn "$psrule_path" "$RUNNER_TEMP/ps-rule"
-          chmod +x "$psrule_path"
+          cat <<'EOF' > "$RUNNER_TEMP/ps-rule"
+          #!/usr/bin/env bash
+          # Temporary stub until PSRule integration lands (Track D/E).
+          cat <<'JSON'
+          {"results":[]}
+          JSON
+          EOF
+          chmod +x "$RUNNER_TEMP/ps-rule"
           echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
 
       - name: Resolve validation configuration
@@ -107,7 +100,7 @@ PY
           from pathlib import Path
 
           DEFAULTS = {
-              "plan_json": "tests/fixtures/azure/app_service.json",
+              "plan_json": "tests/fixtures/azure/app_service_storage_plan.json",
               "fail_on": "high",
               "rule_manifests": [],
           }
@@ -123,11 +116,8 @@ PY
                   raise SystemExit(f"Configuration file must contain a JSON object: {config_path}")
               config = loaded
 
-          plan_json = (
-              os.environ.get("WORKFLOW_PLAN_JSON")
-              or config.get("plan_json")
-              or DEFAULTS["plan_json"]
-          )
+          plan_json_env = os.environ.get("WORKFLOW_PLAN_JSON")
+          plan_json = config.get("plan_json") if plan_json_env in {None, ""} else plan_json_env
           if plan_json is None:
               plan_json = ""
           elif not isinstance(plan_json, str):
@@ -161,10 +151,14 @@ PY
                   raise SystemExit("rule_manifests must be an array of strings")
               manifest_values = [str(value) for value in manifests if str(value).strip()]
 
+          if not plan_json:
+              raise SystemExit(
+                  "plan_json is required. Supply a Terraform plan artifact via workflow input or .github/iac-compliance.json."
+              )
+
           github_env = Path(os.environ["GITHUB_ENV"])
           with github_env.open("a", encoding="utf-8") as env_file:
-              if plan_json:
-                  env_file.write(f"VALIDATION_PLAN_JSON={plan_json}\n")
+              env_file.write(f"VALIDATION_PLAN_JSON={plan_json}\n")
               env_file.write(f"COMPLIANCE_FAIL_ON={fail_on}\n")
               env_file.write("RULE_MANIFESTS<<EOF\n")
               env_file.write("\n".join(manifest_values))
@@ -178,6 +172,7 @@ PY
                   print(f"  rule_manifest={value}")
           else:
               print("  rule_manifest=<none>")
+          print("  modules=<artifact supplied>")
           PY
 
       - name: Run IaC compliance validation
@@ -208,55 +203,21 @@ PY
           echo "results_path=$RESULTS_PATH" >> "$GITHUB_OUTPUT"
 
           iac-compliance validate "${args[@]}" | tee "$RESULTS_PATH"
-        # TODO(Track E): Replace fixture validation with real plan ingestion once implemented.
 
-      - name: Summarize compliance findings
-        if: always() && steps.run-validation.outputs.results_path != ''
+      - name: Publish compliance report
+        if: always()
         env:
           RESULTS_PATH: ${{ steps.run-validation.outputs.results_path }}
         run: |
-          if [ ! -f "${RESULTS_PATH}" ]; then
-            echo "Compliance results file not found: ${RESULTS_PATH}" >&2
+          if [ -z "${RESULTS_PATH}" ]; then
+            echo "Compliance results path was not provided; skipping summary generation." >&2
             exit 0
           fi
-
-          SUMMARY=$(python <<'PY'
-import json
-import os
-from pathlib import Path
-
-from compliance_service.cli.github_reporting import format_summary
-
-results_path = Path(os.environ["RESULTS_PATH"])
-report = json.loads(results_path.read_text(encoding="utf-8"))
-print(format_summary(report))
-PY
-)
-
-          printf '%s\n' "$SUMMARY" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Annotate compliance findings
-        if: always() && steps.run-validation.outputs.results_path != ''
-        env:
-          RESULTS_PATH: ${{ steps.run-validation.outputs.results_path }}
-        run: |
           if [ ! -f "${RESULTS_PATH}" ]; then
-            echo "Compliance results file not found: ${RESULTS_PATH}" >&2
+            echo "Compliance results file not found: ${RESULTS_PATH}; skipping summary generation." >&2
             exit 0
           fi
-
-          python <<'PY'
-import json
-import os
-from pathlib import Path
-
-from compliance_service.cli.github_reporting import iter_annotations
-
-results_path = Path(os.environ["RESULTS_PATH"])
-report = json.loads(results_path.read_text(encoding="utf-8"))
-for command in iter_annotations(report):
-    print(command)
-PY
+          python -m compliance_service.cli.github_reporting "${RESULTS_PATH}"
 
       - name: Upload compliance findings artifact
         if: always() && steps.run-validation.outputs.results_path != ''

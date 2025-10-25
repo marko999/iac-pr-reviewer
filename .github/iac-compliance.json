@@ -1,5 +1,5 @@
 {
-  "plan_json": "tests/fixtures/azure/app_service.json",
+  "plan_json": "tests/fixtures/azure/app_service_storage_plan.json",
   "fail_on": "high",
   "rule_manifests": []
 }
