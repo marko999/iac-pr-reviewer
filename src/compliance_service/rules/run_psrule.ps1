@@ -1,11 +1,15 @@
 #!/usr/bin/env pwsh
 [CmdletBinding()]
-param()
+param(
+    [Parameter(ValueFromRemainingArguments = $true)]
+    [string[]]
+    $Arguments = @()
+)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$arguments = @($args)
+$arguments = @($Arguments)
 
 if ($arguments.Count -gt 0 -and $arguments[0].ToLowerInvariant() -eq 'run') {
     if ($arguments.Count -gt 1) {
