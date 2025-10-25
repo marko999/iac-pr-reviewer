@@ -223,7 +223,15 @@ def _coerce_int(value: object | None) -> int | None:
 
 
 def _load_report(path: Path) -> Mapping[str, object]:
-    data = json.loads(path.read_text(encoding="utf-8"))
+    raw = path.read_text(encoding="utf-8-sig")
+    if not raw.strip():
+        return {}
+
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:  # pragma: no cover - defensive
+        raise ValueError(f"Failed to parse report JSON from '{path}': {exc.msg}.") from exc
+
     if not isinstance(data, Mapping):
         raise ValueError("Report JSON must be an object.")
     return data

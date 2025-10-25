@@ -208,8 +208,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     validate_parser.add_argument(
         "--psrule-exec",
-        default="ps-rule",
-        help="Executable used to invoke PSRule for Azure.",
+        default=None,
+        help=(
+            "Executable used to invoke PSRule for Azure. Defaults to the packaged "
+            "PowerShell wrapper when omitted."
+        ),
     )
     validate_parser.add_argument(
         "--fail-on",
@@ -229,7 +232,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def create_service(
     *,
-    psrule_executable: str = "ps-rule",
+    psrule_executable: str | None = None,
     default_rule_manifests: Sequence[str] | None = None,
 ) -> ComplianceService:
     """Create a compliance service instance using PSRule and Terraform adapters."""

@@ -68,14 +68,30 @@ class PSRuleAdapter(RuleEngineAdapter):
         rule_pack_manager: RulePackManager | None = None,
         manifests: Sequence[str] | None = None,
     ) -> None:
-        if psrule_executable is None:
-            self.psrule_executable = str(
-                resources.files("compliance_service.rules") / "run_psrule.ps1"
-            )
-        else:
-            self.psrule_executable = psrule_executable
+        self.psrule_executable = (
+            psrule_executable if psrule_executable else self.default_executable()
+        )
         self.rule_pack_manager = rule_pack_manager or RulePackManager()
         self.manifests = list(manifests or [])
+
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _resolve_script(name: str) -> str:
+        return str(resources.files("compliance_service.rules") / name)
+
+    # ------------------------------------------------------------------
+    @classmethod
+    def default_executable(cls) -> str:
+        """Return the packaged PowerShell wrapper used to invoke PSRule."""
+
+        return cls._resolve_script("run_psrule.ps1")
+
+    # ------------------------------------------------------------------
+    @classmethod
+    def install_script(cls) -> str:
+        """Return the packaged PowerShell helper used to install PSRule modules."""
+
+        return cls._resolve_script("install_psrule.ps1")
 
     # ------------------------------------------------------------------
     def evaluate(
