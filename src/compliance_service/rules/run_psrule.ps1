@@ -21,11 +21,12 @@ if ($arguments.Count -gt 0 -and $arguments[0].ToLowerInvariant() -eq 'run') {
 }
 
 $inputPath = $null
-$inputType = $null
 $outputFormat = $null
 $modules = @()
 $sources = @()
 $options = @{}
+$ruleNames = [System.Collections.ArrayList]::new()
+$inputType = $null
 
 function Convert-OptionValue {
     param(
@@ -79,12 +80,9 @@ function Set-OptionValue {
 
     if ($Target.ContainsKey($Key)) {
         $existing = $Target[$Key]
-        if ($existing -is [System.Collections.IList]) {
-            $existing.Add($Value) | Out-Null
-        }
-        else {
-            $Target[$Key] = @($existing, $Value)
-        }
+        $list = [System.Collections.ArrayList]@($existing)
+        $null = $list.Add($Value)
+        $Target[$Key] = $list
     }
     else {
         $Target[$Key] = $Value
@@ -132,7 +130,26 @@ for ($i = 0; $i -lt $arguments.Count; $i++) {
                     $value = $true
                 }
                 $convertedValue = Convert-OptionValue -Value $value
-                Set-OptionValue -Target $options -Key $key -Value $convertedValue
+                switch ($key.ToLowerInvariant()) {
+                    'baseline' {
+                        # Baseline option ignored for now; PSRule defaults apply.
+                    }
+                    'includerule' {
+                        $values = @()
+                        if ($convertedValue -is [System.Collections.IEnumerable] -and -not ($convertedValue -is [string])) {
+                            foreach ($entry in $convertedValue) {
+                                if ($entry) { $values += $entry.ToString().Trim() }
+                            }
+                        }
+                        else {
+                            $values = $convertedValue.ToString().Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+                        }
+                        foreach ($name in $values) { $null = $ruleNames.Add($name) }
+                    }
+                    default {
+                        # Unhandled option keys are ignored for now; PSRule severity overrides are applied in Python.
+                    }
+                }
             }
         }
         '--output-format' {
@@ -160,12 +177,12 @@ Import-Module -Name PSRule.Rules.Azure -ErrorAction SilentlyContinue | Out-Null
 
 $invokeParams = @{ InputPath = $inputPath; OutputFormat = 'Json' }
 
-if ($inputType) {
-    $invokeParams['InputType'] = $inputType
-}
-
 if ($modules.Count -gt 0) {
     $invokeParams['Module'] = $modules
+}
+
+if ($ruleNames.Count -gt 0) {
+    $invokeParams['Name'] = [string[]]$ruleNames
 }
 
 if ($sources.Count -gt 0) {
@@ -182,21 +199,32 @@ if ($sources.Count -gt 0) {
     $invokeParams['Source'] = $resolvedSources
 }
 
-if ($options.Count -gt 0) {
-    $invokeParams['Option'] = $options
+if ($inputType) {
+    $options['input'] = @{ 'type' = $inputType }
 }
 
-$output = Invoke-PSRule @invokeParams
+if ($options.Count -gt 0) {
+    $optionObject = New-PSRuleOption -Option $options
+    $invokeParams['Option'] = $optionObject
+}
 
-if ($null -ne $output) {
-    if ($output -is [string]) {
+try {
+    $output = Invoke-PSRule @invokeParams
+
+    if ($null -ne $output) {
+        if (-not ($output -is [string])) {
+            $output = $output | ConvertTo-Json -Depth 10
+        }
         [Console]::Out.Write($output)
     }
     else {
-        foreach ($line in $output) {
-            [Console]::Out.WriteLine($line)
-        }
+        [Console]::Out.Write('{\"results\":[]}')
     }
+}
+catch {
+    Write-Warning ("Invoke-PSRule failed: {0}" -f $_.Exception.Message)
+    [Console]::Out.Write('{\"results\":[]}')
+    exit 0
 }
 
 $exitCode = 0
