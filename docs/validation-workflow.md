@@ -1,5 +1,13 @@
 # Validation Workflow & Testing Strategy
 
+_Status updated: 2025-10-25._
+
+## Current State
+- Terraform plan ingestion supports supplied artifacts and Terraform/Terragrunt execution with module auto-discovery.
+- Resource normalization and PSRule evaluation ship as part of the `iac-compliance validate` CLI, with JSON reports used by CI.
+- The packaged PowerShell wrapper now routes PSRule warnings to stderr so the CLI always receives valid JSON output.
+- Integration tests exercise Azure fixtures to ensure end-to-end behaviour remains stable.
+
 ## Terraform Execution
 - Primary workflow: check out the repository, determine the Terraform modules listed in `.github/iac-compliance.json`, and run `terraform init` / `terraform plan -out` for each module in an isolated temp directory.
 - Persist the generated plan output with `terraform show -json` and feed that JSON into the CLI (via `--plan-json`) to exercise the full ingestion pipeline.
@@ -20,6 +28,7 @@
   - `--module` / `--no-auto-discover` for explicit module selection.
   - `--var-file`, `--env`, `--inherit-env` forwarding execution context to Terraform and PSRule.
   - `--rule-manifest` and `--psrule-exec` controlling the PSRule adapter configuration.
+- Warnings emitted by PSRule (for example, missing custom rule files) are captured and echoed on stderr, keeping stdout pure JSON for downstream parsing.
 - Outputs:
   - Terminal table summarizing findings with severity, rule ID, resource, and remediation.
   - Optional JSON report for integrations and artifact storage.
@@ -32,7 +41,7 @@
   - ResourceNormalizer transformations for representative resources.
   - Adapter invocation using mocked plan data.
 - Integration tests that run the CLI against fixture directories, verifying both CLI output and JSON report contents.
-- Future extension: Terratest suite for optional end-to-end apply-and-validate scenarios.
+- Remaining gap: optional Terratest suite for apply-and-validate scenarios and longer-running Terragrunt plans.
 
 ## Developer Experience
 - Provide Makefile shortcuts (`make plan`, `make validate`, `make test`) and a containerized dev environment with pinned Terraform, Terragrunt, and PSRule versions.

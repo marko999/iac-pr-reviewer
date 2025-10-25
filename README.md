@@ -9,10 +9,10 @@ Infrastructure-as-code (IaC) teams need fast feedback on governance, cost, and n
 - **Built-in integration points:** Reusable GitHub Actions workflow and a PR reviewer agent that comments on policy issues automatically.
 
 ## Current Focus
-- Finish core scaffolding, plan-loading pipeline, and resource normalization (`docs/architecture.md`, `docs/validation-workflow.md`).
-- Implement PSRule-backed compliance evaluation with manifest-driven rule packs.
-- Ship `iac-compliance validate` CLI plus example fixtures and automated tests.
-- Prepare CI workflow and reviewer prototype for repository-level adoption.
+- Finalize packaging for the PSRule-backed CLI (versioning, release checklist, publishing guidance).
+- Document the reusable GitHub Actions workflow and provide a ready-to-copy snippet for other repos.
+- Expand quick-start material so teams can run the validator against their Terraform plans.
+- Sequence the upcoming PR reviewer agent work once distribution and docs are locked in.
 
 ## Project Documentation
 - `docs/architecture.md` — service layout, adapters, and data flow.
@@ -24,7 +24,29 @@ Infrastructure-as-code (IaC) teams need fast feedback on governance, cost, and n
 See the [Implementation Plan](docs/implementation-plan.md) for the eight workstreams covering scaffolding, Terraform integration, rule adapters, CLI UX, fixtures/tests, CI workflow, and reviewer automation.
 
 ## Getting Started
-Tooling is under active development. Once the CLI skeleton lands, this section will include prerequisites, installation steps, and quick-start commands (`iac-compliance validate examples/azure/storageaccount`). For now, follow the documentation in `docs/` when contributing.
+Tooling is functional and ready for hands-on testing. Follow the steps below to run the validator locally or against your own Terraform plans.
+
+### Quick Start (Local Repository)
+
+1. Install the project (optionally with development extras) inside a Python 3.11 virtual environment.
+2. Generate or supply a Terraform plan JSON:
+   - Existing plan: `terraform show -json tfplan > plan.json`
+   - Fresh plan: `terraform init` then `terraform plan -out tfplan` followed by `terraform show -json tfplan > plan.json`
+3. Run the validator:
+
+   ```bash
+   iac-compliance validate --plan-json plan.json --fail-on high
+   ```
+
+   Use `--format table` for a human-readable summary or omit the flag to default to JSON.
+4. Adjust severity enforcement with `--fail-on`, load additional rule manifests via `.github/iac-compliance.json`, and commit the JSON report artifact if you need an audit trail.
+
+### Running Against Another Terraform Project
+
+- Copy the packaged PowerShell scripts in `src/compliance_service/rules/` or install the package via `pip install iac-compliance-service`.
+- Provide rule manifests or rely on the bundled PSRule Azure module cache restored by the GitHub workflow.
+- For multi-module repos, either run from the repository root and let auto-discovery locate modules or pass `--module path/to/module` flags explicitly.
+- Add repository-specific defaults in `.github/iac-compliance.json` so the CLI and workflow stay aligned.
 
 ### Configuring the Compliance Workflow
 
