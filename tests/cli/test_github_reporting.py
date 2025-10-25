@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from codecs import BOM_UTF8
 from pathlib import Path
 
 import pytest
@@ -100,6 +101,17 @@ def test_load_report_handles_empty_file(tmp_path: Path) -> None:
 
     report_path = tmp_path / "report.json"
     report_path.write_text("\n", encoding="utf-8")
+
+    report = _load_report(report_path)
+
+    assert report == {}
+
+
+def test_load_report_handles_empty_file_with_bom(tmp_path: Path) -> None:
+    """Reports containing only a UTF-8 BOM should also be treated as empty."""
+
+    report_path = tmp_path / "report.json"
+    report_path.write_bytes(BOM_UTF8)
 
     report = _load_report(report_path)
 

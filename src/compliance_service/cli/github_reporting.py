@@ -223,7 +223,7 @@ def _coerce_int(value: object | None) -> int | None:
 
 
 def _load_report(path: Path) -> Mapping[str, object]:
-    raw = path.read_text(encoding="utf-8")
+    raw = path.read_text(encoding="utf-8-sig")
     if not raw.strip():
         return {}
 
