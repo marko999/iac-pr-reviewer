@@ -15,8 +15,8 @@ function Resolve-Modules {
         [string[]]$ExplicitModules
     )
 
-    if ($ExplicitModules -and $ExplicitModules.Count -gt 0) {
-        return $ExplicitModules
+    if ($ExplicitModules -and @($ExplicitModules).Count -gt 0) {
+        return @($ExplicitModules | Where-Object { $_ })
     }
 
     if ($env:PSRULE_MODULES) {
@@ -66,8 +66,8 @@ function Install-ModuleIfMissing {
     Install-Module -Name $ModuleName -Scope CurrentUser -Force -Confirm:$false
 }
 
-$moduleList = Resolve-Modules -ExplicitModules $Modules
-if ($moduleList.Count -eq 0) {
+$moduleList = @(Resolve-Modules -ExplicitModules $Modules)
+if ($moduleList.Length -eq 0) {
     Write-Verbose "No PSRule modules requested for installation."
     return
 }
@@ -75,7 +75,7 @@ if ($moduleList.Count -eq 0) {
 Ensure-NuGetProvider
 Trust-PSGallery
 
-$uniqueModules = @($moduleList | Sort-Object -Unique)
+$uniqueModules = @($moduleList | Sort-Object -Unique | Where-Object { $_ })
 foreach ($module in $uniqueModules) {
     Install-ModuleIfMissing -ModuleName $module
 }
