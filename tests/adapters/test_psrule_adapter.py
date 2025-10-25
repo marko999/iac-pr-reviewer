@@ -107,6 +107,12 @@ def test_evaluate_invokes_psrule(monkeypatch, tmp_path):
     assert enforce_https.metadata["link"] == "https://aka.ms/psrule/appservice"
 
 
+def test_install_script_is_packaged():
+    installer = Path(PSRuleAdapter.install_script())
+    assert installer.name == "install_psrule.ps1"
+    assert installer.exists()
+
+
 def test_severity_threshold_filters(monkeypatch):
     adapter = PSRuleAdapter(rule_pack_manager=DummyManager([]))
     resources = [make_resource("module.app.azurerm_storage_account.primary")]

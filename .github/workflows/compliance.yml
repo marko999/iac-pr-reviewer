@@ -63,29 +63,9 @@ jobs:
       - name: Install PSRule modules
         shell: pwsh
         run: |
-          if (-not (Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue)) {
-            Install-PackageProvider -Name NuGet -Scope CurrentUser -Force -Confirm:$false
-          }
-          if (Get-Command Set-PSRepository -ErrorAction SilentlyContinue) {
-            Set-PSRepository -Name PSGallery -InstallationPolicy Trusted -ErrorAction SilentlyContinue
-          }
-          foreach ($module in $env:PSRULE_MODULES.Split(',')) {
-            if (-not (Test-Path (Join-Path $env:HOME ".local/share/powershell/Modules/$module"))) {
-              Install-Module -Name $module -Scope CurrentUser -Force -Confirm:$false
-            }
-          }
-
-      - name: Expose PSRule wrapper
-        run: |
-          cat <<'EOF' > "$RUNNER_TEMP/ps-rule"
-          #!/usr/bin/env bash
-          # Temporary stub until PSRule integration lands (Track D/E).
-          cat <<'JSON'
-          {"results":[]}
-          JSON
-          EOF
-          chmod +x "$RUNNER_TEMP/ps-rule"
-          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+          $scriptPath = python -c "from compliance_service.adapters import PSRuleAdapter; print(PSRuleAdapter.install_script())"
+          $scriptPath = $scriptPath.Trim()
+          & $scriptPath
 
       - name: Resolve validation configuration
         env:
