@@ -208,8 +208,29 @@ if ($options.Count -gt 0) {
     $invokeParams['Option'] = $optionObject
 }
 
+$psruleWarnings = @()
+$invokeParams['WarningAction'] = 'SilentlyContinue'
+$invokeParams['WarningVariable'] = 'psruleWarnings'
+
 try {
     $output = Invoke-PSRule @invokeParams
+    foreach ($warning in $psruleWarnings) {
+        if ($null -eq $warning) {
+            continue
+        }
+
+        $warningMessage = $null
+        if ($warning.PSObject.Properties.Match('Message').Count -gt 0) {
+            $warningMessage = $warning.Message
+        }
+        else {
+            $warningMessage = $warning.ToString()
+        }
+
+        if ($warningMessage) {
+            [Console]::Error.WriteLine("WARNING: {0}" -f $warningMessage)
+        }
+    }
 
     if ($null -ne $output) {
         if (-not ($output -is [string])) {
@@ -218,12 +239,12 @@ try {
         [Console]::Out.Write($output)
     }
     else {
-        [Console]::Out.Write('{\"results\":[]}')
+        [Console]::Out.Write('{"results":[]}')
     }
 }
 catch {
-    Write-Warning ("Invoke-PSRule failed: {0}" -f $_.Exception.Message)
-    [Console]::Out.Write('{\"results\":[]}')
+    [Console]::Error.WriteLine("Invoke-PSRule failed: {0}" -f $_.Exception.Message)
+    [Console]::Out.Write('{"results":[]}')
     exit 0
 }
 
